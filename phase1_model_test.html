@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 1 · Model Runtime Test</title>
+<style>
+  :root{
+    --bg:#14181c; --panel:#1c2228; --panel-2:#232b33; --line:#2c3742;
+    --dish:#0b0e11; --ink:#e8edf0; --mut:#8a98a4; --mut-2:#5d6b76;
+    --accent:#e8b04b; --ok:#3fb36b; --danger:#d8654f;
+    --mono: ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;
+       -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);
+         display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-size:15px;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin:0}
+  header .sub{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.04em}
+  .wrap{flex:1;display:grid;grid-template-columns:300px 1fr;gap:0;min-height:0}
+  @media(max-width:820px){.wrap{grid-template-columns:1fr}}
+  .side{border-right:1px solid var(--line);background:var(--panel);padding:18px 16px;
+        display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+  @media(max-width:820px){.side{border-right:none;border-bottom:1px solid var(--line)}}
+  .grp{display:flex;flex-direction:column;gap:10px}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut-2)}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field span{font-family:var(--mono);font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  input[type=text],select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);
+        border-radius:5px;padding:7px 9px;font-family:var(--mono);font-size:12px;width:100%}
+  input[type=range]{accent-color:var(--accent);width:100%}
+  .filebtn{display:inline-block;background:var(--accent);color:#1a1304;font-weight:700;
+        border-radius:5px;padding:9px 12px;font-family:var(--mono);font-size:12px;text-align:center;cursor:pointer}
+  .filebtn:hover{filter:brightness(1.06)}
+  input[type=file]{display:none}
+  .btn{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:5px;
+       padding:7px 12px;font-family:var(--mono);font-size:12px;cursor:pointer;letter-spacing:.03em}
+  .btn:hover{border-color:var(--mut)}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn:focus-visible,.filebtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .btn.primary{background:var(--accent);color:#1a1304;border-color:var(--accent);font-weight:700}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .status{font-family:var(--mono);font-size:11px;line-height:1.5;border:1px solid var(--line);
+          border-radius:6px;padding:10px 11px;background:var(--dish);min-height:42px;color:var(--mut)}
+  .status.ok{color:var(--ok);border-color:#234b34}
+  .status.err{color:var(--danger);border-color:#4b2a24}
+  .stats{display:flex;flex-direction:column;gap:8px}
+  .stat{display:flex;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:6px}
+  .stat .k{font-family:var(--mono);font-size:11px;color:var(--mut)}
+  .stat .v{font-family:var(--mono);font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .help{font-family:var(--mono);font-size:10px;color:var(--mut-2);line-height:1.55}
+  .stage{position:relative;display:grid;place-items:center;padding:24px;min-height:0}
+  .dish{background:var(--dish);border:1px solid var(--line);border-radius:6px;
+        box-shadow:0 0 0 1px #000 inset,0 18px 50px -30px #000;line-height:0}
+  canvas{display:block;border-radius:5px;image-rendering:pixelated;touch-action:none;cursor:crosshair;background:#fff}
+  .empty{font-family:var(--mono);font-size:12px;color:var(--mut-2);text-align:center;max-width:280px}
+  .stage{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:18px;min-height:0}
+  .viewcap{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.04em}
+  .viewcap b{color:var(--accent);font-weight:600}
+  .genestrip{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-width:560px}
+  .gtile{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;
+         padding:3px;border:1px solid transparent;border-radius:5px}
+  .gtile:hover{border-color:var(--line)}
+  .gtile[aria-pressed="true"]{border-color:var(--accent);background:#241d10}
+  .gtile canvas{width:38px;height:38px;image-rendering:pixelated;border-radius:3px;background:#000;display:block}
+  .gtile .gl{font-family:var(--mono);font-size:8px;color:var(--mut);letter-spacing:.02em}
+  .gtile[aria-pressed="true"] .gl{color:var(--accent)}
+  .dish{position:relative}
+  #overlay{position:absolute;left:0;top:0;pointer-events:none;border-radius:5px;image-rendering:pixelated;background:transparent}
+  #markers{position:absolute;left:0;top:0;pointer-events:none;border-radius:5px;background:transparent}
+  .modebtns{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .modebtns .btn[aria-pressed="true"]{background:var(--accent);color:#1a1304;border-color:var(--accent);font-weight:700}
+  .beadlist{display:flex;flex-direction:column;gap:5px}
+  .beadrow{display:flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);
+           border-radius:5px;padding:5px 7px;font-family:var(--mono);font-size:10px}
+  .beadrow .sw{width:11px;height:11px;border-radius:50%;flex:none}
+  .beadrow .bt{flex:1;color:var(--ink)}
+  .beadrow.off{opacity:.45}
+  .beadrow button{background:none;border:1px solid var(--line);border-radius:4px;color:var(--mut);
+                  cursor:pointer;font-size:10px;padding:2px 5px;font-family:var(--mono)}
+  .beadrow button:hover{border-color:var(--mut)}
+  .tools{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .toolbtn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;
+           background:var(--panel-2);border:1px solid var(--line);border-radius:6px;color:var(--ink);
+           cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:.02em}
+  .toolbtn .ic{font-size:15px;line-height:1}
+  .toolbtn:hover{border-color:var(--mut)}
+  .toolbtn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .toolbtn[aria-pressed="true"]{background:var(--accent);color:#1a1304;border-color:var(--accent);font-weight:700}
+  .toolnote{font-family:var(--mono);font-size:10px;color:var(--mut);line-height:1.5;
+            border-left:2px solid var(--accent);padding-left:9px}
+  .storebox{border:1px dashed var(--line);border-radius:8px;padding:10px;min-height:64px;background:var(--dish)}
+  .storebox.drop-hover{border-color:var(--accent);background:#241d10}
+  .storehint{font-family:var(--mono);font-size:10px;color:var(--mut-2);line-height:1.5}
+  .storecards{display:flex;flex-wrap:wrap;gap:8px}
+  .gcard{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px;
+         background:var(--panel-2);border:1px solid var(--line);border-radius:6px;width:74px}
+  .gthumb{background:#fff;border-radius:3px;image-rendering:pixelated}
+  .gmeta{font-family:var(--mono);font-size:9px;color:var(--mut);text-align:center;line-height:1.3}
+  .gmeta .dim{color:var(--mut-2)}
+  .gcard .btn{width:100%}
+  .chk{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--ink);cursor:pointer}
+  .chk input{accent-color:var(--accent);width:14px;height:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Phase&nbsp;1 · Model Runtime Test</h1>
+  <span class="sub">growing neural CA · quantized WebGL export · in-browser</span>
+</header>
+
+<div class="wrap">
+  <aside class="side">
+    <div class="grp">
+      <div class="eyebrow">1 · Load model</div>
+      <label class="filebtn" for="file">Choose model .json…</label>
+      <input type="file" id="file" accept=".json,application/json">
+      <div class="field">
+        <span>…or load by URL</span>
+        <input type="text" id="url" value="./model.json" spellcheck="false">
+      </div>
+      <button class="btn" id="loadUrl">Load from URL</button>
+      <div class="status" id="status">No model loaded. Pick a model <b>.json</b> — either the quantized <code>ex*_*.json</code> or a full-precision graph export. Works straight off disk — no server needed.</div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">2 · Run</div>
+      <div class="field">
+        <span>Grid size</span>
+        <select id="grid">
+          <option value="64">64 × 64</option>
+          <option value="96" selected>96 × 96 (training size)</option>
+          <option value="128">128 × 128</option>
+        </select>
+      </div>
+      <div class="field">
+        <span id="speedlab">Steps / frame · 1</span>
+        <input type="range" id="speed" min="1" max="12" value="1">
+      </div>
+      <div class="field">
+        <span id="anglelab">Perception angle · 0°</span>
+        <input type="range" id="angle" min="0" max="360" value="0">
+      </div>
+      <div class="row">
+        <button class="btn primary" id="play" disabled>▶ Run</button>
+        <button class="btn" id="step" disabled>Step</button>
+        <button class="btn" id="reseed" disabled>Re-seed</button>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">3 · Cut</div>
+      <div class="toolnote" id="toolnote">Draw a freehand loop around a piece of tissue, then remove it or isolate it. The cut clears every channel, so nothing lingers underneath.</div>
+      <div class="row">
+        <button class="btn" id="removeSel" disabled>Remove selected</button>
+        <button class="btn" id="keepSel" disabled>Keep only</button>
+      </div>
+      <button class="btn" id="clearSel" disabled>Clear selection</button>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">4 · Graft store</div>
+      <div class="storebox" id="storeBox">
+        <div class="storehint" id="storeHint">Drag a selection here to keep a timestamped snapshot. “Place” implants it into a host at any later step — a heterochronic graft.</div>
+        <div class="storecards" id="storeCards"></div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">5 · Signalling bead</div>
+      <div class="modebtns">
+        <button class="btn" id="toolLasso" aria-pressed="true">Lasso</button>
+        <button class="btn" id="toolBead">Bead</button>
+      </div>
+      <div class="field">
+        <span>Target channel ("gene")</span>
+        <select id="beadCh">
+          <option value="4" selected>g1</option><option value="5">g2</option><option value="6">g3</option>
+          <option value="7">g4</option><option value="8">g5</option><option value="9">g6</option>
+          <option value="10">g7</option><option value="11">g8</option><option value="12">g9</option>
+          <option value="13">g10</option><option value="14">g11</option><option value="15">g12</option>
+          <option value="3">α (alive)</option><option value="0">R</option><option value="1">G</option><option value="2">B</option>
+        </select>
+      </div>
+      <div class="modebtns">
+        <button class="btn" id="modeAdd" aria-pressed="true">Add (secrete)</button>
+        <button class="btn" id="modeClamp">Clamp (hold)</button>
+      </div>
+      <div class="field">
+        <span id="bstrlab">Strength · +0.50</span>
+        <input type="range" id="bstr" min="-100" max="100" value="50">
+      </div>
+      <div class="field">
+        <span id="bradlab">Radius · 6</span>
+        <input type="range" id="brad" min="2" max="20" value="6">
+      </div>
+      <div class="toolnote">Switch to <b>Bead</b>, then click on tissue to drop a persistent source (orange +, blue −). It re-applies every step. Channels are uninterpreted — drive one and watch what the body does.</div>
+      <div class="beadlist" id="beadList"></div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">6 · Dynamics</div>
+      <label class="chk"><input type="checkbox" id="ratchet"> Cells can't die (α ratchet)</label>
+      <label class="chk"><input type="checkbox" id="freeze"> Freeze mature cells</label>
+      <div class="field">
+        <span id="mthlab">Mature α ≥ 0.90</span>
+        <input type="range" id="mth" min="10" max="99" value="90">
+      </div>
+      <div class="field">
+        <span id="frlab">Fire rate · 1.00  (match training)</span>
+        <input type="range" id="fr" min="5" max="100" value="100">
+      </div>
+      <label class="chk"><input type="checkbox" id="repro"> Reproducible run (seeded)</label>
+      <div class="field">
+        <span>RNG seed</span>
+        <input type="number" id="rseed" value="1234" step="1" style="width:90px">
+      </div>
+      <div class="toolnote">Mirror the training-side options. Load a model trained with the matching option, then enable it here so the bench runs the same rule. (These also work as live experiments on any model.) With <b>Reproducible run</b> on, the stochastic firing uses a seeded generator, so re-seeding replays the exact same development every time (has no visible effect at fire rate 1.00, which is already synchronous).</div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">7 · Seed</div>
+      <div class="field">
+        <span>Active channels at the seed cell</span>
+        <select id="seedMode">
+          <option value="all" selected>Alpha + all genes (default)</option>
+          <option value="alpha">Alpha only</option>
+          <option value="4">Alpha + g1</option><option value="5">Alpha + g2</option>
+          <option value="6">Alpha + g3</option><option value="7">Alpha + g4</option>
+          <option value="8">Alpha + g5</option><option value="9">Alpha + g6</option>
+          <option value="10">Alpha + g7</option><option value="11">Alpha + g8</option>
+          <option value="12">Alpha + g9</option><option value="13">Alpha + g10</option>
+          <option value="14">Alpha + g11</option><option value="15">Alpha + g12</option>
+        </select>
+      </div>
+      <div class="toolnote">Sets which channels are switched on in the single seed cell (alpha is always on so the cell is alive). Match this to the seed your model was trained with. Applies to Re-seed and shift-click planting.</div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">8 · Confinement</div>
+      <button class="btn" id="toolWall" aria-pressed="false">Wall brush</button>
+      <div class="field">
+        <span id="wallRlab">Wall brush radius · 5</span>
+        <input type="range" id="wallR" min="1" max="20" value="5">
+      </div>
+      <div class="row2">
+        <button class="btn" id="confineSel">Confine to lasso</button>
+        <button class="btn" id="clearWall">Clear walls</button>
+      </div>
+      <div class="toolnote">Paint a forbidden region: those cells are forced dead every step, so growth flows around them (this overrides the α-ratchet). “Confine to lasso” keeps only what’s inside your current selection — draw a small region before seeding to bound the whole organism.</div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">Readout</div>
+      <div class="stats">
+        <div class="stat"><span class="k">Steps</span><span class="v" id="r-steps">—</span></div>
+        <div class="stat"><span class="k">Live cells</span><span class="v" id="r-alive">—</span></div>
+        <div class="stat"><span class="k">Frame rate</span><span class="v" id="r-fps">—</span></div>
+        <div class="stat"><span class="k">tf tensors</span><span class="v" id="r-tensors">—</span></div>
+      </div>
+      <div class="help">
+        Shift-click plants a seed. Drag to lasso a piece, then: drag inside the loop to move it,
+        drag it onto the graft store to keep a snapshot, or use Remove / Keep only.
+      </div>
+    </div>
+  </aside>
+
+  <section class="stage">
+    <div class="viewcap" id="viewcap">Viewing: organism</div>
+    <div class="dish" id="dish">
+      <canvas id="canvas" width="96" height="96" style="width:384px;height:384px"></canvas>
+      <canvas id="overlay" width="96" height="96" style="width:384px;height:384px"></canvas>
+      <canvas id="markers" width="96" height="96" style="width:384px;height:384px"></canvas>
+    </div>
+    <div class="genestrip" id="genestrip"></div>
+    <div class="empty" id="emptyMsg" style="position:absolute">Load a model to begin. The creature grows from a single seed cell at the centre.</div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.3.0/dist/tf.min.js"></script>
+<script>
+"use strict";
+//=================================================================
+// Phase 1 (quantized WebGL format)
+// File = JSON array of two packed dense layers (48->128, 128->16).
+// Perception (identity + Sobel) is fixed and rebuilt here; the
+// forward pass is run explicitly on the GPU via TF.js ops.
+// Dequantization inverts cell 24's pack_layer:
+//   w = (byte/255 - 0.5) * weight_scale ; b = (byte/255 - 0.5)*bias_scale
+// First-layer rows are filter-major (f*CH+c); we reorder to the
+// channel-major (c*3+f) order that depthwiseConv2d produces.
+//=================================================================
+let CH = 16, HD = 128;                 // channel count & hidden width — inferred on load
+const els = id => document.getElementById(id);
+const canvas = els('canvas'), ctx = canvas.getContext('2d');
+const overlay = els('overlay'), octx = overlay.getContext('2d');
+const markers = els('markers'), mctx = markers.getContext('2d');
+const statusEl = els('status');
+
+let W1=null,B1=null,W2=null,B2=null,percK=null,seed=null,state=null; // persistent tensors
+let running=false, steps=0, stepsPerFrame=1, angleDeg=0, D=96, loaded=false;
+let lassoPts=null, selectionPoly=null, drawingLasso=false;
+let viewMode='rgba', lastData=null; let chScale=new Float32Array(CH);
+let CH_LABEL=['R','G','B','α','g1','g2','g3','g4','g5','g6','g7','g8','g9','g10','g11','g12'];
+let tool='lasso';
+const beads=[]; let beadSeq=0;
+let beadCh=4, beadMode='add', beadStrength=0.5, beadRadius=6;
+let addTensor=null, clampMaskT=null, clampValT=null;
+let ratchetOn=false, freezeOn=false, freezeThresh=0.9, fireRate=1.0;
+let reproducible=false, rngSeed=1234, rngA=1234>>>0;      // seeded fire-mask RNG
+function nextRand(){ rngA=(rngA+0x6D2B79F5)|0; let t=Math.imul(rngA^rngA>>>15,1|rngA); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }
+function resetRng(){ rngA=(rngSeed>>>0); }
+let seedChannels=[3,4,5,6,7,8,9,10,11,12,13,14,15];   // default: alpha + all genes
+let forbidMask=null, allowT=null, wallRadius=5, paintingWall=false;   // confinement
+let fpsT=performance.now(), fpsN=0;
+
+function setStatus(m,k){ statusEl.className='status'+(k?(' '+k):''); statusEl.innerHTML=m; }
+function enableRun(on){ for(const id of ['play','step','reseed']) els(id).disabled=!on; }
+
+//------------------------------------------------ dequantize
+function b64ToBytes(b64){
+  const s=atob(b64); const a=new Uint8Array(s.length);
+  for(let i=0;i<s.length;i++) a[i]=s.charCodeAt(i);
+  return a;
+}
+function dequant(layer){
+  const inc=layer.in_ch, outc=layer.out_ch, ws=layer.weight_scale, bs=layer.bias_scale;
+  const bytes=b64ToBytes(layer.data_b64);
+  const need=(inc+1)*outc;
+  if(bytes.length!==need) throw new Error(`layer byte length ${bytes.length} ≠ expected ${need}`);
+  const Wm=new Float32Array(inc*outc), Bm=new Float32Array(outc);
+  for(let r=0;r<inc;r++) for(let c=0;c<outc;c++) Wm[r*outc+c]=(bytes[r*outc+c]/255-0.5)*ws;
+  for(let c=0;c<outc;c++) Bm[c]=(bytes[inc*outc+c]/255-0.5)*bs;
+  return {Wm,Bm,inc,outc};
+}
+
+//------------------------------------------------ perception kernel [3,3,16,3]
+function buildPerception(angleRad){
+  if(percK){ percK.dispose(); percK=null; }
+  const ca=Math.cos(angleRad), sa=Math.sin(angleRad);
+  // base filters
+  const ident=[[0,0,0],[0,1,0],[0,0,0]];
+  const dx=[[-1,0,1],[-2,0,2],[-1,0,1]].map(r=>r.map(v=>v/8));
+  const dy=[[-1,-2,-1],[0,0,0],[1,2,1]].map(r=>r.map(v=>v/8));
+  const fdx=[],fdy=[];
+  for(let y=0;y<3;y++){fdx.push([]);fdy.push([]);
+    for(let x=0;x<3;x++){
+      fdx[y].push(ca*dx[y][x]+sa*dy[y][x]);
+      fdy[y].push(-sa*dx[y][x]+ca*dy[y][x]);
+    }}
+  const filt=[ident,fdx,fdy];                 // m=0 identity, 1 sobel_x', 2 sobel_y'
+  const arr=new Float32Array(3*3*CH*3);       // [y,x,channel,multiplier]
+  for(let y=0;y<3;y++)for(let x=0;x<3;x++)for(let c=0;c<CH;c++)for(let m=0;m<3;m++)
+    arr[((y*3+x)*CH+c)*3+m]=filt[m][y][x];
+  percK=tf.tensor(arr,[3,3,CH,3]);
+}
+
+//------------------------------------------------ teardown
+function disposeWeights(){
+  for(const t of [W1,B1,W2,B2]){ if(t) t.dispose(); }
+  W1=B1=W2=B2=null;
+}
+function disposeState(){ if(state){state.dispose();state=null;} }
+
+//------------------------------------------------ load
+// decode a DT_FLOAT Const tensor's raw little-endian float32 payload
+function decodeFloatTensor(t, flat){
+  const bin=atob(t.tensorContent); const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+  return new Float32Array(u.buffer.slice(0, flat*4));
+}
+// rebuild everything that depends on the model's channel count C and hidden width Hd
+function setDims(C, Hd){
+  CH=C; HD=Hd;
+  chScale=new Float32Array(CH);
+  CH_LABEL=['R','G','B','α']; for(let i=1;i<=CH-4;i++) CH_LABEL.push('g'+i);
+  seedChannels=[]; for(let c=3;c<CH;c++) seedChannels.push(c);   // alpha + all genes
+  rebuildChannelMenus();
+}
+function rebuildChannelMenus(){
+  const bc=els('beadCh');
+  if(bc){ bc.innerHTML='';
+    for(let i=1;i<=CH-4;i++){ const o=document.createElement('option'); o.value=String(3+i); o.textContent='g'+i; if(i===1)o.selected=true; bc.appendChild(o); }
+    for(const pair of [[3,'α (alive)'],[0,'R'],[1,'G'],[2,'B']]){ const o=document.createElement('option'); o.value=String(pair[0]); o.textContent=pair[1]; bc.appendChild(o); }
+    beadCh=4;
+  }
+  const sm=els('seedMode');
+  if(sm){ sm.innerHTML='';
+    const a=document.createElement('option'); a.value='all'; a.textContent='Alpha + all genes (default)'; a.selected=true; sm.appendChild(a);
+    const b=document.createElement('option'); b.value='alpha'; b.textContent='Alpha only'; sm.appendChild(b);
+    for(let i=1;i<=CH-4;i++){ const o=document.createElement('option'); o.value=String(3+i); o.textContent='Alpha + g'+i; sm.appendChild(o); }
+  }
+}
+
+// quantized WebGL export: array of two packed uint8 layers
+function loadQuantized(raw){
+  if(raw.length<2) throw new Error('Expected 2 layers, got '+raw.length+'.');
+  const L0=dequant(raw[0]), L1=dequant(raw[1]);
+  if(L0.inc%3!==0) throw new Error('Layer-0 input ('+L0.inc+') is not divisible by 3.');
+  const C=L0.inc/3, Hd=L0.outc;
+  if(L1.inc!==Hd || L1.outc!==C)
+    throw new Error(`Inconsistent dims: ${L0.inc}->${L0.outc}, ${L1.inc}->${L1.outc} (need 3C->Hd, Hd->C).`);
+  setDims(C, Hd);
+  // reorder layer-0 rows: file p=f*C+c -> conv input i=c*3+f
+  const w1=new Float32Array(L0.inc*Hd);
+  for(let c=0;c<C;c++)for(let f=0;f<3;f++){
+    const iDst=c*3+f, pSrc=f*C+c;
+    for(let j=0;j<Hd;j++) w1[iDst*Hd+j]=L0.Wm[pSrc*Hd+j];
+  }
+  W1=tf.tensor(w1,[1,1,L0.inc,Hd]); B1=tf.tensor(L0.Bm,[Hd]);
+  W2=tf.tensor(L1.Wm,[1,1,Hd,C]);   B2=tf.tensor(L1.Bm,[C]);
+}
+// TF.js graph export: weights live as Const nodes; identify the two conv kernels by shape.
+// conv1 = [1,1,3C,Hd], conv2 = [1,1,Hd,C]  (conv1.in == 3*conv2.out, conv1.out == conv2.in)
+function loadGraph(raw){
+  const k4=[], b1d=[];
+  for(const n of raw.modelTopology.node){
+    if(n.op!=='Const') continue;
+    const t=n.attr&&n.attr.value&&n.attr.value.tensor;
+    if(!t||t.dtype!=='DT_FLOAT'||!t.tensorContent) continue;
+    const dims=((t.tensorShape&&t.tensorShape.dim)||[]).map(d=>+d.size);
+    const flat=dims.reduce((a,b)=>a*b,1)||0;
+    if(dims.length===4) k4.push({dims,data:decodeFloatTensor(t,flat)});
+    else if(dims.length===1) b1d.push({dims,data:decodeFloatTensor(t,flat)});
+  }
+  if(k4.length<2) throw new Error('Expected two conv kernels in the graph, found '+k4.length+'.');
+  const A=k4[0], B=k4[1];
+  let conv1,conv2;
+  if(A.dims[2]===3*B.dims[3] && A.dims[3]===B.dims[2]){ conv1=A; conv2=B; }
+  else if(B.dims[2]===3*A.dims[3] && B.dims[3]===A.dims[2]){ conv1=B; conv2=A; }
+  else throw new Error('Could not match conv layers ('+A.dims+' / '+B.dims+').');
+  const C=conv2.dims[3], Hd=conv1.dims[3];
+  const b1=b1d.find(b=>b.dims[0]===Hd), b2=b1d.find(b=>b.dims[0]===C);
+  if(!b1||!b2) throw new Error('Missing biases (need lengths Hd='+Hd+' and C='+C+').');
+  setDims(C, Hd);
+  W1=tf.tensor(conv1.data,[1,1,3*C,Hd]); B1=tf.tensor(b1.data,[Hd]);
+  W2=tf.tensor(conv2.data,[1,1,Hd,C]);   B2=tf.tensor(b2.data,[C]);
+}
+
+async function loadFromUrl(url,label){
+  try{
+    setStatus('Loading '+label+' …');
+    const raw=await (await fetch(url)).json();
+    disposeWeights();
+    let fmt;
+    if(Array.isArray(raw) && raw[0] && raw[0].data_b64!==undefined){
+      loadQuantized(raw); fmt='quantized';
+    }else if(raw && raw.modelTopology && Array.isArray(raw.modelTopology.node)){
+      loadGraph(raw); fmt='float graph';
+    }else{
+      throw new Error('Unrecognized JSON — not a quantized layer array nor a TF.js graph export.');
+    }
+    buildPerception(angleDeg*Math.PI/180);
+    buildSeed();
+    reseed();
+    buildGeneStrip();
+    render(); renderStrip();
+    loaded=true; enableRun(true);
+    els('emptyMsg').style.display='none';
+    setStatus('Model loaded ('+fmt+') · '+(3*CH)+'→'+HD+'→'+CH+' · '+(CH-4)+' genes. Press Run.', 'ok');
+    if(!running) toggleRun();
+  }catch(err){
+    console.error(err);
+    loaded=false; enableRun(false);
+    setStatus('Could not load model: '+err.message, 'err');
+  }
+}
+
+//------------------------------------------------ seed / state
+function buildSeed(){
+  if(seed) seed.dispose();
+  const arr=new Array(CH).fill(0);
+  for(const c of seedChannels) if(c>=0&&c<CH) arr[c]=1;   // configurable active channels
+  seed=tf.tensor(arr,[1,1,1,CH]);
+}
+function reseed(){
+  if(!seed) return;
+  if(reproducible) resetRng();               // replay the same development from the zygote
+  disposeState();
+  const init=tf.tidy(()=>{ const h=D>>1; return seed.pad([[0,0],[h-1,D-h],[h-1,D-h],[0,0]]); });
+  state=tf.variable(init); init.dispose();
+  steps=0; resizeCanvas();
+}
+function resizeCanvas(){
+  canvas.width=D; canvas.height=D;
+  overlay.width=D; overlay.height=D;
+  markers.width=D; markers.height=D;
+  const scale=Math.max(2,Math.floor(420/D));
+  const css=(D*scale)+'px';
+  canvas.style.width=css; canvas.style.height=css;
+  overlay.style.width=css; overlay.style.height=css;
+  markers.style.width=css; markers.style.height=css;
+}
+
+//------------------------------------------------ forward step (explicit NCA rule)
+function stepModel(){
+  tf.tidy(()=>{
+    const preAlpha=state.slice([0,0,0,3],[-1,-1,-1,1]);          // pre-update alpha
+    const preLife=tf.maxPool(preAlpha,3,1,'same').greater(0.1);
+    const perc=tf.depthwiseConv2d(state,percK,1,'same');         // [1,H,W,48] channel-major
+    const h=tf.conv2d(perc,W1,1,'same').add(B1).relu();          // [1,H,W,128]
+    const dx=tf.conv2d(h,W2,1,'same').add(B2);                   // [1,H,W,CH]
+    let mask;
+    if(reproducible){
+      const a=new Float32Array(D*D);
+      for(let i=0;i<D*D;i++) a[i] = nextRand()<=fireRate ? 1 : 0;
+      mask=tf.tensor(a,[1,D,D,1]);
+    } else {
+      mask=tf.randomUniform([1,D,D,1]).lessEqual(fireRate).toFloat();
+    }
+    if(freezeOn){                                                // mature cells stop updating
+      mask=mask.mul(preAlpha.lessEqual(freezeThresh).toFloat());
+    }
+    let nx=state.add(dx.mul(mask));
+    if(ratchetOn){                                               // alpha may only increase
+      const rgb=nx.slice([0,0,0,0],[-1,-1,-1,3]);
+      const aNew=nx.slice([0,0,0,3],[-1,-1,-1,1]);
+      const hid=nx.slice([0,0,0,4],[-1,-1,-1,CH-4]);
+      nx=tf.concat([rgb, tf.maximum(preAlpha,aNew), hid], 3);
+    }
+    const alphaPost=tf.maxPool(nx.slice([0,0,0,3],[-1,-1,-1,1]),3,1,'same');
+    const life=preLife.logicalAnd(alphaPost.greater(0.1)).toFloat();
+    let out=nx.mul(life);
+    if(allowT) out=out.mul(allowT);        // confinement: forbidden cells forced dead
+    state.assign(out);
+  });
+  applyBeads();          // persistent signalling sources re-assert every step
+  steps++;
+}
+
+//------------------------------------------------ signalling beads
+// per-application magnitude: clamp = absolute target; add = per-step increment
+function beadValue(b){
+  return b.mode==='clamp' ? b.strength*(b.channel===3?1:4)
+                          : b.strength*(b.channel===3?0.05:0.2);
+}
+function rebuildBeads(){
+  if(addTensor){addTensor.dispose();addTensor=null;}
+  if(clampMaskT){clampMaskT.dispose();clampMaskT=null;}
+  if(clampValT){clampValT.dispose();clampValT=null;}
+  const active=beads.filter(b=>b.on);
+  if(!active.length) return;
+  const addArr=new Float32Array(D*D*CH);
+  const cmArr =new Float32Array(D*D*CH);   // clamp mask (gaussian, 0..1)
+  const cvArr =new Float32Array(D*D*CH);   // clamp target value
+  let anyAdd=false, anyClamp=false;
+  for(const b of active){
+    const sigma=Math.max(1,b.r/2), R=Math.ceil(b.r), val=beadValue(b), ch=b.channel;
+    for(let dy=-R;dy<=R;dy++) for(let dx=-R;dx<=R;dx++){
+      const gx=b.x+dx, gy=b.y+dy; if(gx<0||gy<0||gx>=D||gy>=D) continue;
+      const g=Math.exp(-(dx*dx+dy*dy)/(2*sigma*sigma));
+      if(g<0.02) continue;
+      const idx=(gy*D+gx)*CH+ch;
+      if(b.mode==='add'){ addArr[idx]+=val*g; anyAdd=true; }
+      else{ if(g>cmArr[idx]){ cmArr[idx]=g; cvArr[idx]=val; } anyClamp=true; }
+    }
+  }
+  if(anyAdd) addTensor=tf.tensor(addArr,[1,D,D,CH]);
+  if(anyClamp){ clampMaskT=tf.tensor(cmArr,[1,D,D,CH]); clampValT=tf.tensor(cvArr,[1,D,D,CH]); }
+}
+function applyBeads(){
+  if(!addTensor && !clampMaskT) return;
+  tf.tidy(()=>{
+    let ns=state;
+    if(addTensor)  ns=ns.add(addTensor);
+    if(clampMaskT) ns=ns.mul(tf.scalar(1).sub(clampMaskT)).add(clampValT.mul(clampMaskT));
+    state.assign(ns);
+  });
+}
+function drawBeads(){
+  mctx.clearRect(0,0,D,D);
+  if(forbidMask){                                   // hatched "wall" overlay
+    const img=new Uint8ClampedArray(D*D*4);
+    for(let y=0;y<D;y++) for(let x=0;x<D;x++){ const i=y*D+x; if(!forbidMask[i]) continue;
+      const o=i*4, hatch=((x+y)&3)<2;
+      img[o]=hatch?54:24; img[o+1]=hatch?62:28; img[o+2]=hatch?70:34; img[o+3]=hatch?225:200;
+    }
+    mctx.putImageData(new ImageData(img,D,D),0,0);
+  }
+  for(const b of beads){
+    const pos=b.strength>=0;
+    mctx.strokeStyle = b.on ? (pos?'rgba(232,176,75,0.95)':'rgba(70,140,210,0.95)') : 'rgba(140,150,160,0.5)';
+    mctx.fillStyle   = b.on ? (pos?'rgba(232,176,75,0.30)':'rgba(70,140,210,0.30)') : 'rgba(140,150,160,0.15)';
+    mctx.lineWidth=0.8; mctx.setLineDash(b.mode==='clamp'?[]:[2,1.5]);
+    mctx.beginPath(); mctx.arc(b.x+0.5,b.y+0.5,b.r,0,Math.PI*2); mctx.fill(); mctx.stroke();
+    mctx.setLineDash([]); mctx.beginPath(); mctx.arc(b.x+0.5,b.y+0.5,0.9,0,Math.PI*2); mctx.fill();
+  }
+}
+function addBead(x,y){
+  beads.push({id:++beadSeq,x:Math.round(x),y:Math.round(y),r:beadRadius,channel:beadCh,mode:beadMode,strength:beadStrength,on:true});
+  rebuildBeads(); renderBeadList(); drawBeads();
+}
+
+//------------------------------------------------ confinement (forbidden regions)
+function rebuildAllow(){
+  if(allowT){ allowT.dispose(); allowT=null; }
+  if(!forbidMask) return;
+  let any=false; for(let i=0;i<forbidMask.length;i++){ if(forbidMask[i]){ any=true; break; } }
+  if(!any){ forbidMask=null; return; }
+  const a=new Float32Array(D*D);
+  for(let i=0;i<D*D;i++) a[i]=forbidMask[i]?0:1;      // 1 = allowed, 0 = forbidden
+  allowT=tf.tensor(a,[1,D,D,1]);
+}
+function applyConfineNow(){ if(allowT && state) tf.tidy(()=>{ state.assign(state.mul(allowT)); }); }
+function paintWall(cx,cy){
+  if(!forbidMask) forbidMask=new Float32Array(D*D);
+  const R=wallRadius; cx=Math.round(cx); cy=Math.round(cy);
+  for(let dy=-R;dy<=R;dy++) for(let dx=-R;dx<=R;dx++){
+    if(dx*dx+dy*dy>R*R) continue;
+    const x=cx+dx, y=cy+dy; if(x<0||y<0||x>=D||y>=D) continue;
+    forbidMask[y*D+x]=1;
+  }
+  rebuildAllow(); applyConfineNow(); render(); drawBeads();
+}
+function confineToSelection(){
+  if(!selectionPoly){ setStatus('Draw a lasso first, then confine to it.'); return; }
+  forbidMask=new Float32Array(D*D);
+  for(let y=0;y<D;y++) for(let x=0;x<D;x++)
+    if(!pointInPoly({x:x+0.5,y:y+0.5}, selectionPoly)) forbidMask[y*D+x]=1;   // forbid outside
+  rebuildAllow(); applyConfineNow(); clearSelection(); render(); drawBeads();
+}
+function clearWalls(){ forbidMask=null; if(allowT){ allowT.dispose(); allowT=null; } drawBeads(); render(); }
+function renderBeadList(){
+  const list=els('beadList'); list.innerHTML='';
+  for(const b of beads){
+    const row=document.createElement('div'); row.className='beadrow'+(b.on?'':' off');
+    const pos=b.strength>=0;
+    const sw=document.createElement('span'); sw.className='sw';
+    sw.style.background= pos?'#e8b04b':'#4682d2';
+    const txt=document.createElement('span'); txt.className='bt';
+    txt.textContent=`${CH_LABEL[b.channel]} ${b.mode} ${pos?'+':''}${b.strength.toFixed(2)} r${b.r}`;
+    const tog=document.createElement('button'); tog.textContent=b.on?'on':'off';
+    tog.addEventListener('click',()=>{ b.on=!b.on; rebuildBeads(); renderBeadList(); drawBeads(); });
+    const del=document.createElement('button'); del.textContent='×';
+    del.addEventListener('click',()=>{ const i=beads.indexOf(b); if(i>=0)beads.splice(i,1); rebuildBeads(); renderBeadList(); drawBeads(); });
+    row.append(sw,txt,tog,del); list.appendChild(row);
+  }
+}
+// map a channel value to RGB: R/G/B in their own hue, alpha grayscale, genes diverging
+function chColor(k,v,scale,out,o){
+  const cl=x=>x<0?0:(x>255?255:x);
+  if(k<3){ out[o]=0;out[o+1]=0;out[o+2]=0; out[o+k]=cl(v*255); }
+  else if(k===3){ const u=cl(v*255); out[o]=u;out[o+1]=u;out[o+2]=u; }
+  else{                                   // diverging: blue(−) · black(0) · amber(+)
+    const t=Math.max(-1,Math.min(1, v/(scale||1e-3)));
+    if(t>=0){ out[o]=cl(t*232); out[o+1]=cl(t*176); out[o+2]=cl(t*60); }
+    else{ const u=-t; out[o]=cl(u*70); out[o+1]=cl(u*130); out[o+2]=cl(u*210); }
+  }
+  out[o+3]=255;
+}
+function render(){
+  const all=state.dataSync();             // Float32Array D*D*CH (one GPU→CPU read)
+  lastData=all;
+  // per-channel scale (max |value|) for the gene views
+  for(let c=0;c<CH;c++) chScale[c]=1e-3;
+  for(let i=0;i<D*D;i++){ const b=i*CH;
+    for(let c=4;c<CH;c++){ const a=Math.abs(all[b+c]); if(a>chScale[c]) chScale[c]=a; } }
+  const img=new Uint8ClampedArray(D*D*4);
+  if(viewMode==='rgba'){
+    for(let i=0;i<D*D;i++){ const b=i*CH,o=i*4,a=all[b+3];
+      const cl=x=>x<0?0:(x>255?255:x);
+      img[o]=cl((1-a+all[b])*255); img[o+1]=cl((1-a+all[b+1])*255);
+      img[o+2]=cl((1-a+all[b+2])*255); img[o+3]=255;
+    }
+  }else{
+    const k=viewMode;
+    for(let i=0;i<D*D;i++) chColor(k, all[i*CH+k], chScale[k], img, i*4);
+  }
+  ctx.putImageData(new ImageData(img,D,D),0,0);
+}
+// gene-atlas strip (built once; redrawn from lastData at low rate)
+function buildGeneStrip(){
+  const strip=els('genestrip'); strip.innerHTML='';
+  const make=(key,label)=>{
+    const t=document.createElement('div'); t.className='gtile'; t.dataset.view=key;
+    t.setAttribute('aria-pressed', String(viewMode)===String(key)?'true':'false');
+    const cv=document.createElement('canvas'); cv.width=D; cv.height=D;
+    const gl=document.createElement('div'); gl.className='gl'; gl.textContent=label;
+    t.append(cv,gl); t.addEventListener('click',()=>setView(key)); strip.appendChild(t);
+    return cv;
+  };
+  stripCanvases=[];
+  stripCanvases.push({key:'rgba',cv:make('rgba','organism')});
+  for(let k=0;k<CH;k++) stripCanvases.push({key:k,cv:make(k,CH_LABEL[k])});
+}
+let stripCanvases=[];
+function renderStrip(){
+  if(!lastData||!stripCanvases.length) return;
+  for(const {key,cv} of stripCanvases){
+    if(cv.width!==D){ cv.width=D; cv.height=D; }
+    const ctx2=cv.getContext('2d'); const img=new Uint8ClampedArray(D*D*4);
+    if(key==='rgba'){
+      for(let i=0;i<D*D;i++){ const b=i*CH,o=i*4,a=lastData[b+3];
+        const cl=x=>x<0?0:(x>255?255:x);
+        img[o]=cl((1-a+lastData[b])*255); img[o+1]=cl((1-a+lastData[b+1])*255);
+        img[o+2]=cl((1-a+lastData[b+2])*255); img[o+3]=255; }
+    }else{
+      const k=key; for(let i=0;i<D*D;i++) chColor(k,lastData[i*CH+k],chScale[k],img,i*4);
+    }
+    ctx2.putImageData(new ImageData(img,D,D),0,0);
+  }
+}
+function setView(key){
+  viewMode=key;
+  for(const t of document.querySelectorAll('.gtile'))
+    t.setAttribute('aria-pressed', String(t.dataset.view)===String(key)?'true':'false');
+  const label = key==='rgba' ? 'organism'
+    : (key<4 ? CH_LABEL[key]+' channel' : 'gene '+(key-3)+'  (hidden channel '+key+')');
+  els('viewcap').innerHTML='Viewing: <b>'+label+'</b>'+
+    (key>=4?'  · scale ±'+chScale[key].toFixed(2):'');
+  if(lastData) render();
+}
+
+//------------------------------------------------ interactions
+function eventCell(e){
+  const r=canvas.getBoundingClientRect();
+  return { x:(e.clientX-r.left)/r.width*D, y:(e.clientY-r.top)/r.height*D };
+}
+function pointInRect(x,y,r){ return x>=r.left&&x<=r.right&&y>=r.top&&y<=r.bottom; }
+function pointInPoly(p,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;
+    if(((yi>p.y)!==(yj>p.y)) && (p.x < (xj-xi)*(p.y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function plantSeed(x,y){
+  if(!state||!seed) return;
+  x=Math.floor(x); y=Math.floor(y);
+  const x2=D-x-1, y2=D-y-1; if(x<0||y<0||x2<0||y2<0) return;
+  tf.tidy(()=>{ state.assign(state.add(seed.pad([[0,0],[y,y2],[x,x2],[0,0]]))); });
+}
+
+// ---- overlay + lasso drawing (grid-space) ----
+function clearOverlay(){ octx.clearRect(0,0,D,D); }
+function strokeLasso(pts, closed){
+  clearOverlay();
+  if(!pts||pts.length<2) return;
+  octx.lineJoin='round'; octx.lineWidth=0.8; octx.setLineDash(closed?[]:[3,2]);
+  if(closed){ octx.fillStyle='rgba(216,101,79,0.22)'; }
+  octx.strokeStyle='rgba(232,176,75,0.95)';
+  octx.beginPath(); octx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) octx.lineTo(pts[i].x,pts[i].y);
+  if(closed){ octx.closePath(); octx.fill(); }
+  octx.stroke();
+}
+function setSelButtons(on){
+  els('removeSel').disabled=!on; els('keepSel').disabled=!on; els('clearSel').disabled=!on;
+}
+
+// ---- polygon -> grid mask helpers ----
+function rasterMaskFull(poly){            // Uint8 length D*D, 1 inside polygon
+  const off=document.createElement('canvas'); off.width=D; off.height=D;
+  const o=off.getContext('2d'); o.fillStyle='#000'; o.fillRect(0,0,D,D);
+  o.fillStyle='#fff'; o.beginPath(); o.moveTo(poly[0].x,poly[0].y);
+  for(let i=1;i<poly.length;i++) o.lineTo(poly[i].x,poly[i].y);
+  o.closePath(); o.fill();
+  const d=o.getImageData(0,0,D,D).data; const m=new Uint8Array(D*D);
+  for(let i=0;i<D*D;i++) m[i]=d[i*4]>127?1:0;
+  return m;
+}
+function zeroFullMask(full){              // remove cells where full==1
+  const m=new Float32Array(D*D); for(let i=0;i<D*D;i++) m[i]=full[i]?0:1;
+  tf.tidy(()=>{ state.assign(state.mul(tf.tensor(m,[1,D,D,1]))); });
+}
+function applySelection(mode){            // 'remove' inside, or 'keep' only inside
+  if(!selectionPoly||selectionPoly.length<3||!state) return;
+  const full=rasterMaskFull(selectionPoly);
+  const m=new Float32Array(D*D);
+  for(let i=0;i<D*D;i++) m[i]= mode==='remove' ? (full[i]?0:1) : (full[i]?1:0);
+  tf.tidy(()=>{ state.assign(state.mul(tf.tensor(m,[1,D,D,1]))); });
+  clearSelection();
+}
+function clearSelection(){ selectionPoly=null; lassoPts=null; setSelButtons(false); clearOverlay(); }
+
+// ---- capture a lassoed region as a 16-channel graft snapshot ----
+function captureRegion(poly){
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  for(const p of poly){ minx=Math.min(minx,p.x);miny=Math.min(miny,p.y);maxx=Math.max(maxx,p.x);maxy=Math.max(maxy,p.y); }
+  const x0=Math.max(0,Math.floor(minx)), y0=Math.max(0,Math.floor(miny));
+  const w=Math.min(D,Math.ceil(maxx))-x0, h=Math.min(D,Math.ceil(maxy))-y0;
+  if(w<=0||h<=0) return null;
+  const full=rasterMaskFull(poly);
+  const sdata=state.dataSync();          // Float32Array D*D*CH (NHWC)
+  const data=new Float32Array(w*h*CH), mask=new Uint8Array(w*h);
+  for(let yy=0;yy<h;yy++) for(let xx=0;xx<w;xx++){
+    const fi=(y0+yy)*D+(x0+xx), inside=full[fi];
+    const alive = inside && sdata[fi*CH+3]>=0.1;      // only transplant living tissue
+    mask[yy*w+xx]=alive?1:0;
+    if(alive) for(let c=0;c<CH;c++) data[(yy*w+xx)*CH+c]=sdata[fi*CH+c];
+  }
+  return {w,h,x0,y0,data,mask,step:steps};
+}
+
+// ---- stamp a graft (replace host tissue inside the graft footprint) ----
+function stampGraft(g,tx,ty){
+  if(!state||!g) return;
+  const G=new Float32Array(D*D*CH), M=new Float32Array(D*D);
+  for(let yy=0;yy<g.h;yy++) for(let xx=0;xx<g.w;xx++){
+    if(!g.mask[yy*g.w+xx]) continue;
+    const gx=tx+xx, gy=ty+yy; if(gx<0||gy<0||gx>=D||gy>=D) continue;
+    const fi=gy*D+gx; M[fi]=1;
+    for(let c=0;c<CH;c++) G[fi*CH+c]=g.data[(yy*g.w+xx)*CH+c];
+  }
+  tf.tidy(()=>{
+    const Mt=tf.tensor(M,[1,D,D,1]), Gt=tf.tensor(G,[1,D,D,CH]);
+    state.assign(state.mul(tf.scalar(1).sub(Mt)).add(Gt));
+  });
+}
+
+// ---- floating drag ghost (follows cursor anywhere on the page) ----
+let ghostEl=null, ghostCv=null;
+function renderGhost(g){
+  if(!ghostEl){
+    ghostEl=document.createElement('div');
+    ghostEl.style.cssText='position:fixed;pointer-events:none;z-index:9999;opacity:.85;transform:translate(-50%,-50%)';
+    ghostCv=document.createElement('canvas');
+    ghostCv.style.cssText='image-rendering:pixelated;border:1px dashed #e8b04b;border-radius:4px';
+    ghostEl.appendChild(ghostCv); document.body.appendChild(ghostEl);
+  }
+  ghostCv.width=g.w; ghostCv.height=g.h;
+  const im=new ImageData(g.w,g.h);
+  for(let i=0;i<g.w*g.h;i++){
+    if(!g.mask[i]){ im.data[i*4+3]=0; continue; }
+    const r=g.data[i*CH],gg=g.data[i*CH+1],b=g.data[i*CH+2],a=g.data[i*CH+3];
+    const cl=v=>Math.max(0,Math.min(255,v*255));
+    im.data[i*4]=cl(1-a+r); im.data[i*4+1]=cl(1-a+gg); im.data[i*4+2]=cl(1-a+b); im.data[i*4+3]=255;
+  }
+  ghostCv.getContext('2d').putImageData(im,0,0);
+  const scale=canvas.getBoundingClientRect().width/D;
+  ghostCv.style.width=(g.w*scale)+'px'; ghostCv.style.height=(g.h*scale)+'px';
+}
+function moveGhost(cx,cy){ if(ghostEl){ ghostEl.style.left=cx+'px'; ghostEl.style.top=cy+'px'; } }
+function hideGhost(){ if(ghostEl){ ghostEl.remove(); ghostEl=null; ghostCv=null; } }
+
+// ---- graft store ----
+const store=[];
+function addToStore(g){
+  store.push(g);
+  const card=document.createElement('div'); card.className='gcard';
+  const thumb=document.createElement('canvas'); thumb.className='gthumb'; thumb.width=g.w; thumb.height=g.h;
+  const im=new ImageData(g.w,g.h);
+  for(let i=0;i<g.w*g.h;i++){
+    if(!g.mask[i]){ im.data[i*4+3]=0; continue; }
+    const r=g.data[i*CH],gg=g.data[i*CH+1],b=g.data[i*CH+2],a=g.data[i*CH+3];
+    const cl=v=>Math.max(0,Math.min(255,v*255));
+    im.data[i*4]=cl(1-a+r); im.data[i*4+1]=cl(1-a+gg); im.data[i*4+2]=cl(1-a+b); im.data[i*4+3]=255;
+  }
+  thumb.getContext('2d').putImageData(im,0,0);
+  const sc=Math.min(46/g.w,46/g.h); thumb.style.width=(g.w*sc)+'px'; thumb.style.height=(g.h*sc)+'px';
+  const meta=document.createElement('div'); meta.className='gmeta';
+  meta.innerHTML=`<div>step ${g.step.toLocaleString()}</div><div class="dim">${g.w}×${g.h}</div>`;
+  const place=document.createElement('button'); place.className='btn'; place.textContent='Place';
+  place.style.cssText='padding:4px 8px;font-size:11px';
+  place.addEventListener('click',()=>armPlace(g));
+  const del=document.createElement('button'); del.className='btn'; del.textContent='×';
+  del.style.cssText='padding:4px 8px;font-size:11px';
+  del.addEventListener('click',()=>{ const i=store.indexOf(g); if(i>=0)store.splice(i,1); card.remove(); });
+  card.append(thumb,meta,place,del);
+  els('storeCards').appendChild(card);
+  els('storeHint').style.display='none';
+}
+
+// ---- armed "place from store": ghost follows cursor, click on dish implants ----
+let armedGraft=null;
+function armPlace(g){ armedGraft=g; renderGhost(g); }
+function disarm(){ armedGraft=null; hideGhost(); }
+
+// ---- pointer state ----
+let dragMode=null, grabGraft=null, grabStart=null;
+
+canvas.addEventListener('pointerdown',e=>{ if(!state)return;
+  const c=eventCell(e);
+  if(armedGraft){                                   // implant stored graft, centred on click
+    stampGraft(armedGraft, Math.round(c.x-armedGraft.w/2), Math.round(c.y-armedGraft.h/2));
+    if(!e.altKey) disarm();                          // hold Alt to place several copies
+    return;
+  }
+  if(e.shiftKey){ plantSeed(c.x,c.y); return; }
+  if(tool==='bead'){ addBead(c.x,c.y); return; }
+  if(tool==='confine'){ canvas.setPointerCapture(e.pointerId); paintingWall=true; paintWall(c.x,c.y); return; }
+  canvas.setPointerCapture(e.pointerId);
+  if(selectionPoly && pointInPoly(c,selectionPoly)){ // grab the selection to drag it
+    const g=captureRegion(selectionPoly); if(!g) return;
+    grabGraft=g; grabStart=c; dragMode='move'; renderGhost(g); moveGhost(e.clientX,e.clientY);
+  }else{                                             // otherwise begin a new lasso
+    dragMode='lasso'; drawingLasso=true; lassoPts=[c]; selectionPoly=null; setSelButtons(false); clearOverlay();
+  }
+});
+canvas.addEventListener('pointermove',e=>{ if(!state)return;
+  if(paintingWall){ const c=eventCell(e); paintWall(c.x,c.y); return; }
+  if(dragMode==='move'){
+    moveGhost(e.clientX,e.clientY);
+    const over=pointInRect(e.clientX,e.clientY,els('storeBox').getBoundingClientRect());
+    els('storeBox').classList.toggle('drop-hover',over);
+    return;
+  }
+  if(dragMode==='lasso'&&!e.shiftKey){ lassoPts.push(eventCell(e)); strokeLasso(lassoPts,false); }
+});
+function endPointer(e){
+  if(paintingWall){ paintingWall=false; return; }
+  if(dragMode==='move'&&grabGraft){
+    const overStore=pointInRect(e.clientX,e.clientY,els('storeBox').getBoundingClientRect());
+    const overDish =pointInRect(e.clientX,e.clientY,canvas.getBoundingClientRect());
+    if(overStore){ addToStore(grabGraft); }          // keep a copy; organism left intact
+    else if(overDish){                                // move within the dish
+      const d=eventCell(e);
+      const dx=Math.round(d.x-grabStart.x), dy=Math.round(d.y-grabStart.y);
+      zeroFullMask(rasterMaskFull(selectionPoly));
+      stampGraft(grabGraft, grabGraft.x0+dx, grabGraft.y0+dy);
+    }                                                 // released elsewhere: cancel
+    els('storeBox').classList.remove('drop-hover');
+    hideGhost(); grabGraft=null; dragMode=null; clearSelection(); return;
+  }
+  if(dragMode==='lasso'){
+    if(lassoPts&&lassoPts.length>=3){ selectionPoly=lassoPts.slice(); strokeLasso(selectionPoly,true); setSelButtons(true); }
+    else clearOverlay();
+    drawingLasso=false; dragMode=null;
+  }
+}
+canvas.addEventListener('pointerup',endPointer);
+canvas.addEventListener('pointercancel',endPointer);
+document.addEventListener('mousemove',e=>{ if(armedGraft) moveGhost(e.clientX,e.clientY); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') disarm(); });
+
+//------------------------------------------------ loop
+let stripTick=0;
+function frame(){
+  if(running&&loaded&&state){ for(let s=0;s<stepsPerFrame;s++) stepModel(); }
+  if(state) render();
+  if(state) drawBeads();
+  if(state && (stripTick++ % 6===0)){
+    renderStrip();
+    if(viewMode!=='rgba' && viewMode>=4)
+      els('viewcap').innerHTML='Viewing: <b>gene '+(viewMode-3)+'  (hidden channel '+viewMode+')</b>  · scale ±'+chScale[viewMode].toFixed(2);
+  }
+  fpsN++; const now=performance.now();
+  if(now-fpsT>500){
+    els('r-fps').textContent=Math.round(fpsN*1000/(now-fpsT)); fpsT=now; fpsN=0;
+    els('r-tensors').textContent=tf.memory().numTensors;
+    if(state){ const alive=tf.tidy(()=>state.slice([0,0,0,3],[-1,-1,-1,1]).greater(0.1).sum().arraySync());
+      els('r-alive').textContent=alive.toLocaleString(); }
+  }
+  els('r-steps').textContent=steps.toLocaleString();
+  requestAnimationFrame(frame);
+}
+
+//------------------------------------------------ UI
+function toggleRun(){ running=!running; els('play').textContent=running?'⏸ Pause':'▶ Run'; }
+els('play').addEventListener('click',toggleRun);
+els('step').addEventListener('click',()=>{ if(loaded&&state){stepModel();render();} });
+els('reseed').addEventListener('click',reseed);
+els('speed').addEventListener('input',e=>{ stepsPerFrame=+e.target.value; els('speedlab').textContent='Steps / frame · '+stepsPerFrame; });
+els('angle').addEventListener('input',e=>{ angleDeg=+e.target.value; els('anglelab').textContent='Perception angle · '+angleDeg+'°'; if(loaded) buildPerception(angleDeg*Math.PI/180); });
+els('grid').addEventListener('change',e=>{ D=+e.target.value; if(loaded){ reseed(); clearSelection(); rebuildBeads(); clearWalls(); drawBeads(); } });
+
+// bead panel
+function setTool(t){ tool=t;
+  els('toolLasso').setAttribute('aria-pressed', t==='lasso'?'true':'false');
+  els('toolBead').setAttribute('aria-pressed', t==='bead'?'true':'false');
+  const tw=els('toolWall'); if(tw) tw.setAttribute('aria-pressed', t==='confine'?'true':'false');
+}
+els('toolLasso').addEventListener('click',()=>setTool('lasso'));
+els('toolBead').addEventListener('click',()=>setTool('bead'));
+els('toolWall').addEventListener('click',()=>setTool('confine'));
+els('wallR').addEventListener('input',e=>{ wallRadius=+e.target.value; els('wallRlab').textContent='Wall brush radius · '+wallRadius; });
+els('confineSel').addEventListener('click',confineToSelection);
+els('clearWall').addEventListener('click',clearWalls);
+function setBeadMode(m){ beadMode=m;
+  els('modeAdd').setAttribute('aria-pressed', m==='add'?'true':'false');
+  els('modeClamp').setAttribute('aria-pressed', m==='clamp'?'true':'false');
+}
+els('modeAdd').addEventListener('click',()=>setBeadMode('add'));
+els('modeClamp').addEventListener('click',()=>setBeadMode('clamp'));
+els('beadCh').addEventListener('change',e=>{ beadCh=+e.target.value; });
+els('bstr').addEventListener('input',e=>{ beadStrength=(+e.target.value)/100;
+  els('bstrlab').textContent='Strength · '+(beadStrength>=0?'+':'')+beadStrength.toFixed(2); });
+els('brad').addEventListener('input',e=>{ beadRadius=+e.target.value; els('bradlab').textContent='Radius · '+beadRadius; });
+
+// dynamics toggles (mirror the training-side options)
+els('ratchet').addEventListener('change',e=>{ ratchetOn=e.target.checked; });
+els('freeze').addEventListener('change',e=>{ freezeOn=e.target.checked; });
+els('mth').addEventListener('input',e=>{ freezeThresh=(+e.target.value)/100; els('mthlab').textContent='Mature α ≥ '+freezeThresh.toFixed(2); });
+els('fr').addEventListener('input',e=>{ fireRate=(+e.target.value)/100; els('frlab').textContent='Fire rate · '+fireRate.toFixed(2)+'  (match training)'; });
+els('repro').addEventListener('change',e=>{ reproducible=e.target.checked; if(reproducible) resetRng(); });
+els('rseed').addEventListener('change',e=>{ rngSeed=(+e.target.value)|0; if(reproducible) resetRng(); });
+
+// seed composition
+els('seedMode').addEventListener('change',e=>{
+  const v=e.target.value;
+  if(v==='all')        seedChannels=[3,4,5,6,7,8,9,10,11,12,13,14,15];
+  else if(v==='alpha') seedChannels=[3];
+  else                 seedChannels=[3, +v];     // alpha + one chosen gene
+  if(loaded){ buildSeed(); reseed(); }
+});
+
+// lasso actions
+els('removeSel').addEventListener('click',()=>applySelection('remove'));
+els('keepSel').addEventListener('click',()=>applySelection('keep'));
+els('clearSel').addEventListener('click',clearSelection);
+els('file').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ const u=URL.createObjectURL(new Blob([rd.result],{type:'application/json'})); loadFromUrl(u,f.name); };
+  rd.onerror=()=>setStatus('Could not read file.','err');
+  rd.readAsText(f);
+});
+els('loadUrl').addEventListener('click',()=>{ const u=els('url').value.trim(); loadFromUrl(u,u); });
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gene pattern painter · NCA lab</title>
+<style>
+  :root{
+    --bg:#14181c; --panel:#1c2228; --panel-2:#232b33; --line:#2c3742;
+    --dish:#0b0e11; --ink:#e8edf0; --mut:#8a98a4; --mut-2:#5d6b76;
+    --accent:#e8b04b; --ok:#3fb36b; --danger:#d8654f; --blue:#4682d2;
+    --mono: ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;
+       display:grid;grid-template-rows:auto 1fr;min-height:100%}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);
+         display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.01em}
+  header .sub{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.04em}
+  .layout{display:grid;grid-template-columns:300px 1fr;min-height:0}
+  @media(max-width:860px){.layout{grid-template-columns:1fr}}
+  .side{border-right:1px solid var(--line);background:var(--panel);padding:16px 15px;
+        overflow:auto;display:flex;flex-direction:column;gap:16px}
+  @media(max-width:860px){.side{border-right:none;border-bottom:1px solid var(--line)}}
+  .grp{display:flex;flex-direction:column;gap:9px}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut-2)}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field span{font-family:var(--mono);font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+  input[type=text],select{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);
+        border-radius:5px;padding:7px 9px;font-family:var(--mono);font-size:12px;width:100%}
+  input[type=range]{accent-color:var(--accent);width:100%}
+  .filebtn{display:inline-block;background:var(--accent);color:#1a1304;font-weight:700;
+        border-radius:5px;padding:9px 12px;font-family:var(--mono);font-size:12px;text-align:center;cursor:pointer}
+  .filebtn:hover{filter:brightness(1.06)}
+  input[type=file]{display:none}
+  .btn{background:var(--panel-2);color:var(--ink);border:1px solid var(--line);border-radius:5px;
+       padding:7px 10px;font-family:var(--mono);font-size:12px;cursor:pointer;letter-spacing:.03em}
+  .btn:hover{border-color:var(--mut)}
+  .btn:focus-visible,.filebtn:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .btn[aria-pressed="true"]{background:var(--accent);color:#1a1304;border-color:var(--accent);font-weight:700}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .row4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
+  .chk{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;color:var(--ink);cursor:pointer}
+  .chk input{accent-color:var(--accent);width:14px;height:14px}
+  .note{font-family:var(--mono);font-size:10.5px;color:var(--mut);line-height:1.5}
+  .note b{color:var(--accent);font-weight:600}
+  .danger{color:var(--danger);border-color:#43342f}
+  .painted{font-family:var(--mono);font-size:10.5px;color:var(--mut)}
+  .painted b{color:var(--ok)}
+
+  .stage{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+         gap:14px;padding:22px;min-height:0}
+  .cap{font-family:var(--mono);font-size:11px;color:var(--mut);letter-spacing:.03em}
+  .cap b{color:var(--accent);font-weight:600}
+  .board{position:relative;border-radius:6px;box-shadow:0 0 0 1px var(--line);background:var(--dish);
+         background-image:linear-gradient(45deg,#0e1216 25%,transparent 25%,transparent 75%,#0e1216 75%),
+                          linear-gradient(45deg,#0e1216 25%,#0b0e11 25%,#0b0e11 75%,#0e1216 75%);
+         background-size:16px 16px;background-position:0 0,8px 8px}
+  .board canvas{position:absolute;left:0;top:0;image-rendering:pixelated;border-radius:6px;
+                width:512px;height:512px}
+  #bd{opacity:.5}
+  #pt{cursor:crosshair}
+  #ov{pointer-events:none}
+  .legend{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:10px;color:var(--mut)}
+  .ramp{width:150px;height:10px;border-radius:3px;
+        background:linear-gradient(90deg,var(--blue),#0b0e11 50%,var(--accent))}
+</style>
+</head>
+<body>
+<header>
+  <h1>Gene pattern painter</h1>
+  <span class="sub">design option-2 target maps · paint a gene, export, train against it</span>
+</header>
+
+<div class="layout">
+  <aside class="side">
+    <div class="grp">
+      <div class="eyebrow">1 · Grid &amp; anatomy</div>
+      <div class="field">
+        <span>Grid size (must equal target_size + 2·grid_pad)</span>
+        <select id="grid">
+          <option value="56">56</option>
+          <option value="72">72</option>
+          <option value="96" selected>96</option>
+          <option value="128">128</option>
+        </select>
+      </div>
+      <label class="filebtn" for="tgt">Load target image (trace over it)</label>
+      <input type="file" id="tgt" accept="image/png,image/*">
+      <div class="note">Loads your RGBA target faded behind the canvas so you paint genes relative to the body. Its alpha is the body outline used by <b>clip to body</b>.</div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">2 · Gene to paint</div>
+      <div class="field">
+        <span>Channel</span>
+        <select id="ch">
+          <option value="4" selected>g1</option><option value="5">g2</option><option value="6">g3</option>
+          <option value="7">g4</option><option value="8">g5</option><option value="9">g6</option>
+          <option value="10">g7</option><option value="11">g8</option><option value="12">g9</option>
+          <option value="13">g10</option><option value="14">g11</option><option value="15">g12</option>
+        </select>
+      </div>
+      <div class="painted" id="painted">Painted: none</div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">3 · Tool</div>
+      <div class="row4">
+        <button class="btn" id="t-linear" aria-pressed="true">Linear</button>
+        <button class="btn" id="t-radial">Radial</button>
+        <button class="btn" id="t-brush">Brush</button>
+        <button class="btn" id="t-fill">Fill</button>
+      </div>
+      <div class="field" id="grad-vals">
+        <span id="vAlab">Start value · +1.00</span>
+        <input type="range" id="vA" min="-100" max="100" value="100">
+        <span id="vBlab">End value · −1.00</span>
+        <input type="range" id="vB" min="-100" max="100" value="-100">
+      </div>
+      <div class="field" id="brush-vals" style="display:none">
+        <span id="bvlab">Brush value · +1.00</span>
+        <input type="range" id="bv" min="-100" max="100" value="100">
+        <span id="brlab">Brush radius · 6</span>
+        <input type="range" id="br" min="1" max="24" value="6">
+      </div>
+      <label class="chk"><input type="checkbox" id="clip" checked> Clip to body (need a target)</label>
+      <div class="note" id="toolhint">Drag across the body to lay a gradient from start to end value. Any angle. Amber = positive, blue = negative.</div>
+    </div>
+
+    <div class="grp">
+      <div class="eyebrow">4 · Export &amp; reset</div>
+      <div class="field">
+        <span>File name</span>
+        <input type="text" id="fname" value="paint_maps">
+      </div>
+      <label class="filebtn" id="export" tabindex="0" role="button">Download maps (.json)</label>
+      <div class="row2">
+        <button class="btn" id="clearch">Clear gene</button>
+        <button class="btn danger" id="clearall">Clear all</button>
+      </div>
+      <div class="note">Exports every painted gene as a target map. Feed the file to the trainer's option-2 loss to pin each channel to its painted pattern.</div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="cap" id="cap">Painting <b id="capch">g1</b> · linear gradient</div>
+    <div class="board" id="board">
+      <canvas id="bd" width="96" height="96"></canvas>
+      <canvas id="pt" width="96" height="96"></canvas>
+      <canvas id="ov" width="96" height="96"></canvas>
+    </div>
+    <div class="legend"><span>−1</span><div class="ramp"></div><span>+1</span><span style="margin-left:8px">brightness = strength</span></div>
+  </main>
+</div>
+
+<script>
+"use strict";
+const els = id => document.getElementById(id);
+
+// ---- state ----
+let D = 96;
+let maps = {};                 // channel index -> Float32Array(D*D)
+let activeCh = 4;
+let tool = 'linear';
+let vA = 1.0, vB = -1.0;       // gradient endpoints
+let brushVal = 1.0, brushR = 6;
+let clipBody = true;
+let backdropRGBA = null;       // Uint8ClampedArray(D*D*4) | null
+let bodyAlpha = null;          // Float32Array(D*D) | null
+const CH_LABEL = {4:'g1',5:'g2',6:'g3',7:'g4',8:'g5',9:'g6',10:'g7',11:'g8',12:'g9',13:'g10',14:'g11',15:'g12'};
+
+// ---- pure helpers (DOM-free) ----
+function ensureMap(ch){ if(!maps[ch]) maps[ch]=new Float32Array(D*D); return maps[ch]; }
+function curMap(){ return ensureMap(activeCh); }
+
+function divColor(v){                       // v in [-1,1] -> [r,g,b,a], a ∝ |v|
+  const t = Math.max(-1, Math.min(1, v));
+  const a = Math.min(1, Math.abs(t));
+  let r,g,b;
+  if(t>=0){ r=t*232; g=t*176; b=t*60; } else { const u=-t; r=u*70; g=u*130; b=u*210; }
+  return [r,g,b,a];
+}
+function inBody(i){ return !(clipBody && bodyAlpha && bodyAlpha[i] <= 0.1); }
+
+function applyLinear(base, x0,y0, x1,y1){   // returns a new buffer
+  const out = base.slice();
+  const dx = x1-x0, dy = y1-y0, len2 = (dx*dx+dy*dy) || 1;
+  for(let y=0;y<D;y++) for(let x=0;x<D;x++){
+    const i=y*D+x; if(!inBody(i)) continue;
+    let t = ((x-x0)*dx + (y-y0)*dy)/len2; t = t<0?0:(t>1?1:t);
+    out[i] = vA + (vB-vA)*t;
+  }
+  return out;
+}
+function applyRadial(base, cx,cy, ex,ey){
+  const out = base.slice();
+  const r = Math.hypot(ex-cx, ey-cy) || 1;
+  for(let y=0;y<D;y++) for(let x=0;x<D;x++){
+    const i=y*D+x; if(!inBody(i)) continue;
+    let t = Math.hypot(x-cx, y-cy)/r; t = t>1?1:t;
+    out[i] = vA + (vB-vA)*t;             // centre = start value, edge = end value
+  }
+  return out;
+}
+function applyFill(base){
+  const out = base.slice();
+  for(let i=0;i<D*D;i++) if(inBody(i)) out[i]=vA;
+  return out;
+}
+function paintBrush(map, cx,cy){          // mutates map: lerp toward brushVal
+  const R=brushR, sig=Math.max(1, brushR/2);
+  for(let dy=-R;dy<=R;dy++) for(let dx=-R;dx<=R;dx++){
+    const x=Math.round(cx)+dx, y=Math.round(cy)+dy;
+    if(x<0||y<0||x>=D||y>=D) continue;
+    const i=y*D+x; if(!inBody(i)) continue;
+    const g=Math.exp(-(dx*dx+dy*dy)/(2*sig*sig));
+    map[i] = map[i] + (brushVal - map[i])*g;
+  }
+}
+
+// ---- DOM-bound code (init on load) ----
+let bctx, pctx, octx, pcanvas;
+function renderMap(buf){
+  const img = new Uint8ClampedArray(D*D*4);
+  for(let i=0;i<D*D;i++){ const c=divColor(buf[i]); const o=i*4;
+    img[o]=c[0]; img[o+1]=c[1]; img[o+2]=c[2]; img[o+3]=Math.round(c[3]*255); }
+  pctx.putImageData(new ImageData(img, D, D), 0, 0);
+}
+function renderBackdrop(){
+  bctx.clearRect(0,0,D,D);
+  if(backdropRGBA) bctx.putImageData(new ImageData(backdropRGBA.slice(), D, D), 0, 0);
+}
+function render(){ renderMap(curMap()); }
+
+function updatePaintedList(){
+  const on=[];
+  for(const ch of Object.keys(maps)){
+    const m=maps[ch]; for(let i=0;i<m.length;i++){ if(m[i]!==0){ on.push(CH_LABEL[ch]); break; } }
+  }
+  els('painted').innerHTML = on.length ? 'Painted: <b>'+on.join(', ')+'</b>' : 'Painted: none';
+}
+function updateCap(){
+  els('capch').textContent = CH_LABEL[activeCh];
+  const names={linear:'linear gradient',radial:'radial gradient',brush:'brush',fill:'fill'};
+  els('cap').innerHTML = 'Painting <b>'+CH_LABEL[activeCh]+'</b> · '+names[tool];
+}
+
+function setTool(t){
+  tool=t;
+  for(const k of ['linear','radial','brush','fill'])
+    els('t-'+k).setAttribute('aria-pressed', k===t?'true':'false');
+  els('grad-vals').style.display = (t==='brush') ? 'none' : 'flex';
+  els('brush-vals').style.display = (t==='brush') ? 'flex' : 'none';
+  const hints={
+    linear:'Drag across the body to lay a gradient from start to end value. Any angle.',
+    radial:'Drag from the centre outward: centre takes the start value, the rim takes the end value.',
+    brush:'Paint freehand toward the brush value. Use value 0 to erase. Good for limb fields / domains.',
+    fill:'Fills the whole map (or just the body) with the start value.'
+  };
+  els('toolhint').textContent = hints[t];
+  updateCap();
+}
+
+function pointFromEvent(e){
+  const r = pcanvas.getBoundingClientRect();
+  return { x:(e.clientX-r.left)/r.width*D, y:(e.clientY-r.top)/r.height*D };
+}
+
+function loadTarget(file){
+  const img = new Image();
+  img.onload = ()=>{
+    const off = document.createElement('canvas'); off.width=D; off.height=D;
+    const o = off.getContext('2d'); o.clearRect(0,0,D,D); o.drawImage(img,0,0,D,D);
+    const d = o.getImageData(0,0,D,D).data;
+    backdropRGBA = new Uint8ClampedArray(d);
+    bodyAlpha = new Float32Array(D*D);
+    for(let i=0;i<D*D;i++) bodyAlpha[i] = d[i*4+3]/255;
+    renderBackdrop();
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function exportJSON(){
+  const channels={};
+  for(const ch of Object.keys(maps)){
+    const m=maps[ch]; let any=false;
+    for(let i=0;i<m.length;i++){ if(m[i]!==0){ any=true; break; } }
+    if(!any) continue;
+    const rows=new Array(D);
+    for(let y=0;y<D;y++){ const row=new Array(D);
+      for(let x=0;x<D;x++) row[x]=Math.round(m[y*D+x]*1000)/1000;
+      rows[y]=row;
+    }
+    channels[ch]=rows;
+  }
+  if(Object.keys(channels).length===0){ alert('Nothing painted yet — paint a gene first.'); return; }
+  const obj={ format:"nca-paint-maps", grid:D,
+    note:"option-2 target maps; values in [-1,1]; keys are channel indices (4=g1 .. 15=g12)",
+    channels };
+  const blob=new Blob([JSON.stringify(obj)], {type:"application/json"});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=(els('fname').value||'paint_maps')+'.json';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+function resizeBoard(){
+  for(const id of ['bd','pt','ov']){ const c=els(id); c.width=D; c.height=D; }
+  const css=Math.min(560, Math.max(320, Math.floor(512)));
+  for(const id of ['bd','pt','ov']){ const c=els(id); c.style.width=css+'px'; c.style.height=css+'px'; }
+  els('board').style.width=css+'px'; els('board').style.height=css+'px';
+}
+
+window.addEventListener('load', ()=>{
+  pcanvas=els('pt'); pctx=pcanvas.getContext('2d');
+  bctx=els('bd').getContext('2d'); octx=els('ov').getContext('2d');
+  resizeBoard(); render(); updatePaintedList(); updateCap();
+
+  // tool buttons
+  for(const k of ['linear','radial','brush','fill']) els('t-'+k).addEventListener('click',()=>setTool(k));
+
+  // value sliders
+  els('vA').addEventListener('input',e=>{ vA=(+e.target.value)/100; els('vAlab').textContent='Start value · '+(vA>=0?'+':'−')+Math.abs(vA).toFixed(2); });
+  els('vB').addEventListener('input',e=>{ vB=(+e.target.value)/100; els('vBlab').textContent='End value · '+(vB>=0?'+':'−')+Math.abs(vB).toFixed(2); });
+  els('bv').addEventListener('input',e=>{ brushVal=(+e.target.value)/100; els('bvlab').textContent='Brush value · '+(brushVal>=0?'+':'−')+Math.abs(brushVal).toFixed(2); });
+  els('br').addEventListener('input',e=>{ brushR=+e.target.value; els('brlab').textContent='Brush radius · '+brushR; });
+  els('clip').addEventListener('change',e=>{ clipBody=e.target.checked; });
+
+  // channel
+  els('ch').addEventListener('change',e=>{ activeCh=+e.target.value; render(); updateCap(); });
+
+  // grid
+  els('grid').addEventListener('change',e=>{
+    const nd=+e.target.value;
+    if(Object.keys(maps).length && !confirm('Changing the grid clears all painted genes. Continue?')){
+      e.target.value=String(D); return;
+    }
+    D=nd; maps={}; backdropRGBA=null; bodyAlpha=null;
+    resizeBoard(); renderBackdrop(); render(); updatePaintedList();
+  });
+
+  // target image
+  els('tgt').addEventListener('change',e=>{ if(e.target.files[0]) loadTarget(e.target.files[0]); });
+
+  // export + reset
+  els('export').addEventListener('click', exportJSON);
+  els('export').addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); exportJSON(); }});
+  els('clearch').addEventListener('click',()=>{ maps[activeCh]=new Float32Array(D*D); render(); updatePaintedList(); });
+  els('clearall').addEventListener('click',()=>{ if(confirm('Clear every painted gene?')){ maps={}; render(); updatePaintedList(); }});
+
+  // painting interaction
+  let drag=false, p0=null;
+  pcanvas.addEventListener('pointerdown', e=>{
+    pcanvas.setPointerCapture(e.pointerId); drag=true; p0=pointFromEvent(e);
+    if(tool==='brush'){ paintBrush(curMap(), p0.x, p0.y); render(); }
+    else if(tool==='fill'){ maps[activeCh]=applyFill(curMap()); drag=false; render(); updatePaintedList(); }
+  });
+  pcanvas.addEventListener('pointermove', e=>{
+    if(!drag) return; const p=pointFromEvent(e);
+    if(tool==='brush'){ paintBrush(curMap(), p.x, p.y); render(); }
+    else if(tool==='linear'){ renderMap(applyLinear(curMap(), p0.x,p0.y, p.x,p.y)); }
+    else if(tool==='radial'){ renderMap(applyRadial(curMap(), p0.x,p0.y, p.x,p.y)); }
+  });
+  pcanvas.addEventListener('pointerup', e=>{
+    if(!drag) return; drag=false; const p=pointFromEvent(e);
+    if(tool==='linear') maps[activeCh]=applyLinear(curMap(), p0.x,p0.y, p.x,p.y);
+    else if(tool==='radial') maps[activeCh]=applyRadial(curMap(), p0.x,p0.y, p.x,p.y);
+    render(); updatePaintedList();
+  });
+});
+</script>
+</body>
+</html>
