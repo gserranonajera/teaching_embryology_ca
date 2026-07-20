@@ -200,7 +200,7 @@
 
     <div class="grp" id="grp-cut">
       <div class="eyebrow">Cut / select (lasso)</div>
-      <button class="btn" id="toolLasso" aria-pressed="true">Lasso mode (draw a selection)</button>
+      <button class="btn" id="toolLasso" aria-pressed="true">Lasso mode (draw a selection) · B</button>
       <div class="row">
         <button class="btn" id="removeSel" disabled>Remove selected</button>
         <button class="btn" id="keepSel" disabled>Keep only</button>
@@ -218,7 +218,7 @@
 
     <div class="grp" id="grp-bead">
       <div class="eyebrow">Signalling bead</div>
-      <button class="btn" id="toolBead">Bead mode (click tissue to add)</button>
+      <button class="btn" id="toolBead">Bead mode (click tissue to add) · B</button>
       <div class="field">
         <span>Target morphogen</span>
         <div id="beadChPick" class="swatchpick"></div>
@@ -907,9 +907,29 @@ function confineToSelection(){
   rebuildAllow(); applyConfineNow(); clearSelection(); render(); drawBeads();
 }
 function clearWalls(){ forbidMask=null; if(allowT){ allowT.dispose(); allowT=null; } drawBeads(); render(); }
+function buildCocktailRecipe(b){
+  const box=document.createElement('div');
+  box.style.cssText='display:none;flex-direction:column;gap:3px;padding:6px 7px;background:var(--dish);border:1px solid var(--line);border-radius:5px;margin-top:-2px';
+  let scale=1e-3; for(const p of b.cocktail) scale=Math.max(scale,Math.abs(p.value));
+  for(const p of b.cocktail){
+    const line=document.createElement('div'); line.style.cssText='display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mut)';
+    const lab=document.createElement('span'); lab.textContent=CH_LABEL[p.channel]; lab.style.cssText='width:22px;flex:none;text-align:right;color:'+morphogenColor(p.channel);
+    const track=document.createElement('span'); track.style.cssText='position:relative;flex:1;height:8px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden';
+    const mid=document.createElement('span'); mid.style.cssText='position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(160,170,180,0.3)';
+    const fill=document.createElement('span');
+    const w=Math.abs(p.value)/scale*50;                        // % of half-width
+    const left=p.value>=0?50:50-w;
+    fill.style.cssText='position:absolute;top:1px;bottom:1px;left:'+left+'%;width:'+w+'%;background:'+morphogenColor(p.channel)+';border-radius:1px';
+    track.append(mid,fill);
+    const val=document.createElement('span'); val.textContent=(p.value>=0?'+':'')+p.value.toFixed(2); val.style.cssText='width:34px;flex:none;text-align:right';
+    line.append(lab,track,val); box.appendChild(line);
+  }
+  return box;
+}
 function renderBeadList(){
   const list=els('beadList'); list.innerHTML='';
   for(const b of beads){
+    const wrap=document.createElement('div');
     const row=document.createElement('div'); row.className='beadrow'+(b.on?'':' off');
     const pos=b.strength>=0;
     const sw=document.createElement('span'); sw.className='sw';
@@ -922,7 +942,16 @@ function renderBeadList(){
     tog.addEventListener('click',()=>{ b.on=!b.on; rebuildBeads(); renderBeadList(); drawBeads(); });
     const del=document.createElement('button'); del.textContent='×';
     del.addEventListener('click',()=>{ const i=beads.indexOf(b); if(i>=0)beads.splice(i,1); rebuildBeads(); renderBeadList(); drawBeads(); });
-    row.append(sw,txt,tog,del); list.appendChild(row);
+    row.append(sw,txt);
+    if(b.cocktail){                                   // expandable recipe (colour bars)
+      const rec=buildCocktailRecipe(b);
+      const rbtn=document.createElement('button'); rbtn.textContent='recipe';
+      rbtn.addEventListener('click',()=>{ rec.style.display = rec.style.display==='none'?'flex':'none'; });
+      row.append(rbtn,tog,del); wrap.append(row,rec);
+    } else {
+      row.append(tog,del); wrap.append(row);
+    }
+    list.appendChild(wrap);
   }
 }
 // map a channel value to RGB: R/G/B in their own hue, alpha grayscale, genes diverging
@@ -1263,6 +1292,12 @@ canvas.addEventListener('pointerup',endPointer);
 canvas.addEventListener('pointercancel',endPointer);
 document.addEventListener('mousemove',e=>{ if(armedGraft) moveGhost(e.clientX,e.clientY); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') disarm(); });
+// press B to toggle between Lasso and Bead tools (ignored while typing in a field)
+document.addEventListener('keydown',e=>{
+  if((e.key==='b'||e.key==='B') && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target&&e.target.tagName)||'')){
+    e.preventDefault(); setTool(tool==='bead'?'lasso':'bead');
+  }
+});
 
 //------------------------------------------------ gene-expression timeline (lasso region over time)
 let exprRegion=null, exprRecording=false, exprHist=[], exprSteps=[], exprIncludeAlpha=false;
@@ -1514,6 +1549,9 @@ function initPanes(){
   mv('toolcell-mut',   ['grp-genome']);
   for(let i=0;i<4;i++){ placeContent(i, paneMap[i]);
     const sel=document.querySelector('.pane-sel[data-pane="'+i+'"]'); fillPaneSelect(sel, paneMap[i]); }
+  // any content not shown in a pane goes to the hidden holding area (not loose on the page)
+  for(const key of Object.keys(PANE_CONTENT))
+    if(!paneMap.includes(key)) els('paneHolding').appendChild(els(PANE_CONTENT[key].node));
   document.querySelectorAll('.pane-sel').forEach(sel=>{
     sel.addEventListener('change',e=>{
       const i=+e.target.dataset.pane, want=e.target.value;
