@@ -91,6 +91,9 @@
   #genestrip2{max-width:100%}
   #genestrip2 .gtile canvas{width:52px;height:52px}
   #genestrip2 .gtile .gl{font-size:8px}
+  #genestrip3{max-width:100%;gap:4px}
+  #genestrip3 .gtile canvas{width:46px;height:46px}
+  #genestrip3 .gtile .gl{font-size:8px}
   .expertbox{border:1px solid var(--line);border-radius:8px;background:#141418;padding:0 10px}
   .expertbox>summary{cursor:pointer;padding:10px 2px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut-2);list-style:none}
   .expertbox>summary::-webkit-details-marker{display:none}
@@ -245,6 +248,12 @@
   </aside>
 
   <aside class="side right">
+    <div class="grp">
+      <div class="eyebrow">Gene expression</div>
+      <div class="genestrip" id="genestrip3"></div>
+      <div class="toolnote">Every morphogen at a glance. Click a tile to view that channel on the organism; click “organism” to go back.</div>
+    </div>
+
     <div class="grp" id="grp-dyn">
       <div class="eyebrow">Dynamics</div>
       <label class="chk"><input type="checkbox" id="ratchet"> Cells can't die (α ratchet)</label>
@@ -998,7 +1007,7 @@ function buildGeneStrip(){
     t.append(cv,gl); t.addEventListener('click',()=>setView(key)); strip.appendChild(t);
     return cv;
   };
-  const strips=['genestrip','genestrip2'].map(id=>els(id)).filter(Boolean);
+  const strips=['genestrip','genestrip2','genestrip3'].map(id=>els(id)).filter(Boolean);
   strips.forEach(strip=>{ strip.innerHTML='';
     stripCanvases.push({key:'rgba',cv:make(strip,'rgba','organism')});
     for(let k=0;k<CH;k++) stripCanvases.push({key:k,cv:make(strip,k,CH_LABEL[k])});
