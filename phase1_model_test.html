@@ -913,7 +913,7 @@ function renderBeadList(){
     const row=document.createElement('div'); row.className='beadrow'+(b.on?'':' off');
     const pos=b.strength>=0;
     const sw=document.createElement('span'); sw.className='sw';
-    sw.style.background= pos?'#e8b04b':'#4682d2';
+    sw.style.background = b.cocktail ? 'rgba(240,240,240,0.95)' : morphogenColor(b.channel);
     const txt=document.createElement('span'); txt.className='bt';
     txt.textContent = b.cocktail
       ? `cocktail·${b.cocktail.length}ch ${b.mode} gain ${b.strength>=0?'+':''}${b.strength.toFixed(2)} r${b.r}`
