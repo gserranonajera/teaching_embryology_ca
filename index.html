@@ -22,15 +22,19 @@
   .sub{color:var(--mut);font-size:14px;margin-top:6px}
   main{padding:32px 0 56px}
   p{color:#cdd6dd}
-  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0 8px}
-  @media(max-width:640px){.cards{grid-template-columns:1fr}}
   .card{display:block;text-decoration:none;color:inherit;background:var(--panel);
-        border:1px solid var(--line);border-radius:10px;padding:20px;transition:border-color .15s,transform .15s}
+        border:1px solid var(--line);border-radius:10px;padding:24px;margin:24px 0 8px;
+        transition:border-color .15s,transform .15s}
   .card:hover{border-color:var(--accent);transform:translateY(-2px)}
-  .card h2{margin:0 0 6px;font-size:17px;color:var(--accent)}
+  .card h2{margin:0 0 6px;font-size:19px;color:var(--accent)}
   .card .k{font-family:var(--mono);font-size:11px;color:var(--mut-2);text-transform:uppercase;letter-spacing:.1em}
   .card p{margin:8px 0 0;font-size:13.5px;color:var(--mut)}
-  .note{margin-top:28px;padding:16px 18px;background:var(--panel-2);border:1px solid var(--line);
+  .steps{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:26px 0}
+  @media(max-width:640px){.steps{grid-template-columns:1fr}}
+  .step{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:16px 18px}
+  .step h3{margin:0 0 6px;font-size:14px;color:var(--ink)}
+  .step p{margin:0;font-size:13px;color:var(--mut)}
+  .note{margin-top:20px;padding:16px 18px;background:var(--panel-2);border:1px solid var(--line);
         border-radius:8px;font-size:13.5px;color:var(--mut)}
   .note b{color:var(--ink)}
   footer{border-top:1px solid var(--line);padding:20px 0;color:var(--mut-2);font-size:12.5px;
@@ -49,30 +53,34 @@
 </header>
 
 <main class="wrap">
-  <p>These are interactive teaching tools built on the neural cellular automata model. The seed is a
-     zygote; hidden channels stand in for gene expression; and the update rule is a local “cell” program
-     applied everywhere at once. Everything runs in your browser — nothing is uploaded.</p>
+  <p>An interactive teaching tool built on the neural cellular automata model. The seed is a
+     <b>zygote</b>; the hidden channels stand in for <b>morphogens</b> (gene products); the network
+     weights are the <b>genome</b> — a local “cell” program run everywhere at once. Everything runs in
+     your browser; nothing is uploaded.</p>
 
-  <div class="cards">
-    <a class="card" href="phase1_model_test.html">
-      <div class="k">Tool 01</div>
-      <h2>Lab bench →</h2>
-      <p>Load a trained model and run it live. Cut and graft tissue, place morphogen beads, watch every
-         gene channel in the atlas, confine growth, and toggle developmental dynamics.</p>
-    </a>
-    <a class="card" href="phase2_pattern_painter.html">
-      <div class="k">Tool 02</div>
-      <h2>Pattern painter →</h2>
-      <p>Paint per-gene target maps — gradients, domains, and fields — and export them to guide training,
-         so a chosen channel expresses in a pattern you design.</p>
-    </a>
+  <a class="card" href="phase1_model_test.html">
+    <div class="k">Open</div>
+    <h2>Enter the Lab →</h2>
+    <p>A demo organism loads automatically — just press <b>Run</b> and start experimenting. Cut and graft
+       tissue, drop morphogen beads (including tissue-extract “cocktails”), watch every gene channel, plot
+       gene expression over time, mutate the genome, and confine or damage growth. Advanced setup —
+       loading your own model, grid size, dynamics, and the seed — lives under a collapsed
+       <b>“For experts”</b> panel, so it’s there when you want it and out of the way when you don’t.</p>
+  </a>
+
+  <div class="steps">
+    <div class="step"><h3>1 · Grow it</h3><p>The demo organism is already loaded. Press <b>Run</b> to grow it from the seed, or <b>Re-seed</b> to start over.</p></div>
+    <div class="step"><h3>2 · Experiment</h3><p>Use the tools: lasso and cut tissue, graft pieces elsewhere, place signalling beads, and watch what develops.</p></div>
+    <div class="step"><h3>3 · Measure</h3><p>Open the gene atlas to see each morphogen, and lasso a region to plot its gene expression over developmental time.</p></div>
+    <div class="step"><h3>4 · Go deeper</h3><p>Open <b>“For experts”</b> to load your own trained model, change the grid, adjust the seed, or toggle developmental dynamics.</p></div>
   </div>
 
   <div class="note">
-    <b>Getting started:</b> open the lab bench and load a trained model file (a quantized JSON export or a
-    full-precision graph model). If you don’t have one yet, the models are produced by the accompanying
-    PyTorch trainer. The bench needs an internet connection the first time it loads (it fetches the
-    TensorFlow.js library), then runs entirely on your machine.
+    <b>For teachers &amp; developers:</b> the demo organism is the file <code>student_model.json</code> served
+    next to this page; replace it to change the default creature. Auto-load works when the page is
+    <b>served</b> (e.g. GitHub Pages); if you open the file directly from disk, just expand
+    <b>“For experts”</b> and load a model by hand. Models are produced by the accompanying PyTorch trainer.
+    The bench fetches TensorFlow.js on first load, then runs entirely on your machine.
   </div>
 </main>
 
