@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Phase 1 · Model Runtime Test</title>
+<title>Mangold · developmental-biology lab bench</title>
 <style>
   :root{
     --bg:#14181c; --panel:#1c2228; --panel-2:#232b33; --line:#2c3742;
@@ -94,6 +94,11 @@
   #genestrip3{max-width:100%;gap:4px}
   #genestrip3 .gtile canvas{width:46px;height:46px}
   #genestrip3 .gtile .gl{font-size:8px}
+  .swatchpick{display:flex;flex-wrap:wrap;gap:5px}
+  .swatch{width:30px;height:24px;border-radius:4px;border:2px solid transparent;cursor:pointer;
+          font-family:var(--mono);font-size:9px;color:#000;font-weight:700;line-height:1;padding:0;
+          display:flex;align-items:center;justify-content:center;text-shadow:0 0 2px rgba(255,255,255,.5)}
+  .swatch[aria-pressed="true"]{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
   .expertbox{border:1px solid var(--line);border-radius:8px;background:#141418;padding:0 10px}
   .expertbox>summary{cursor:pointer;padding:10px 2px;font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mut-2);list-style:none}
   .expertbox>summary::-webkit-details-marker{display:none}
@@ -138,8 +143,8 @@
 </head>
 <body>
 <header>
-  <h1>Phase&nbsp;1 · Model Runtime Test</h1>
-  <span class="sub">growing neural CA · quantized WebGL export · in-browser</span>
+  <h1>Mangold <span style="color:var(--mut-2);font-weight:400">· beta</span></h1>
+  <span class="sub">a developmental-biology lab bench · grow a creature &amp; run embryology experiments</span>
 </header>
 
 <div class="wrap">
@@ -162,10 +167,10 @@
         <span>Grid size</span>
         <select id="grid">
           <option value="64">64 × 64</option>
-          <option value="96" selected>96 × 96</option>
+          <option value="96">96 × 96</option>
           <option value="128">128 × 128</option>
           <option value="160">160 × 160</option>
-          <option value="192">192 × 192</option>
+          <option value="192" selected>192 × 192</option>
           <option value="224">224 × 224</option>
         </select>
       </div>
@@ -199,7 +204,6 @@
     <div class="grp" id="grp-cut">
       <div class="eyebrow">Cut / select (lasso)</div>
       <button class="btn" id="toolLasso" aria-pressed="true">Lasso mode (draw a selection)</button>
-      <div class="toolnote" id="toolnote">In Lasso mode, draw a freehand loop around a piece of tissue, then remove it or isolate it. The cut clears every channel, so nothing lingers underneath. The lasso is also used for grafting, confine-to-lasso, and the expression region.</div>
       <div class="row">
         <button class="btn" id="removeSel" disabled>Remove selected</button>
         <button class="btn" id="keepSel" disabled>Keep only</button>
@@ -219,14 +223,8 @@
       <div class="eyebrow">Signalling bead</div>
       <button class="btn" id="toolBead">Bead mode (click tissue to add)</button>
       <div class="field">
-        <span>Target channel ("morphogen")</span>
-        <select id="beadCh">
-          <option value="4" selected>m1</option><option value="5">m2</option><option value="6">m3</option>
-          <option value="7">m4</option><option value="8">m5</option><option value="9">m6</option>
-          <option value="10">m7</option><option value="11">m8</option><option value="12">m9</option>
-          <option value="13">m10</option><option value="14">m11</option><option value="15">m12</option>
-          <option value="3">α (alive)</option><option value="0">R</option><option value="1">G</option><option value="2">B</option>
-        </select>
+        <span>Target morphogen</span>
+        <div id="beadChPick" class="swatchpick"></div>
       </div>
       <div class="modebtns">
         <button class="btn" id="modeAdd" aria-pressed="true">Add (secrete)</button>
@@ -242,7 +240,6 @@
         <input type="range" id="brad" min="2" max="60" value="6">
         <input type="number" id="bradnum" value="6" min="1" step="1" style="width:100px">
       </div>
-      <div class="toolnote">Switch to <b>Bead</b>, then click on tissue to drop a persistent source (orange +, blue −). It re-applies every step. Channels are uninterpreted — drive one and watch what the body does.</div>
       <div class="beadlist" id="beadList"></div>
     </div>
   </aside>
@@ -320,7 +317,6 @@
         <button class="btn" id="confineSel">Confine to lasso</button>
         <button class="btn" id="clearWall">Clear walls</button>
       </div>
-      <div class="toolnote">Paint a forbidden region: those cells are forced dead every step, so growth flows around them (this overrides the α-ratchet). “Confine to lasso” keeps only what’s inside your current selection — draw a small region before seeding to bound the whole organism.</div>
     </div>
 
     <div class="grp" id="grp-genome">
@@ -342,7 +338,6 @@
         </div>
       </div>
       <button class="btn" id="revert" disabled>Revert to original</button>
-      <div class="toolnote">The <b>genome</b> is the network weights (~8,300 of them) — the fixed program every cell runs. Mutations change that program, so <b>re-seed</b> to see the effect on development. Point-mutation perturbs a fraction of weights (most mutations are harmless or lethal; a few are interesting). Knock-out silences one morphogen (loss-of-function). Revert restores the original.</div>
     </div>
 
     <div class="grp">
@@ -374,10 +369,10 @@
       <div class="viewcap" style="display:flex;align-items:center;gap:8px">
         <span>Morphogen colour scale</span>
         <select id="geneScale" style="font-family:var(--mono);font-size:11px">
-          <option value="auto" selected>Automatic</option>
-          <option value="fixed">Fixed ±</option>
+          <option value="auto">Automatic</option>
+          <option value="fixed" selected>Fixed ±</option>
         </select>
-        <input type="number" id="geneScaleVal" value="1" min="0.01" step="0.1" style="width:70px;display:none">
+        <input type="number" id="geneScaleVal" value="1" min="0.01" step="0.1" style="width:70px">
       </div>
       <div class="dish" id="dish">
         <canvas id="canvas" width="96" height="96"></canvas>
@@ -430,30 +425,16 @@
       </div>
     </div>
 
-    <div class="empty" id="emptyMsg" style="position:absolute">Load a model to begin. The creature grows from a single seed cell at the centre.</div>
+    <div class="empty" id="emptyMsg" style="position:absolute"></div>
 
     <div id="paneHolding" style="display:none">
       <div id="content-tools" style="width:100%;display:flex;flex-direction:column;gap:10px">
-        <div class="viewcap" style="text-align:center">Tools</div>
+        <div class="viewcap" style="text-align:center">Embryology tools</div>
         <div class="toolgrid">
           <div class="toolcell" id="toolcell-graft"></div>
           <div class="toolcell" id="toolcell-bead"></div>
           <div class="toolcell" id="toolcell-wall"></div>
           <div class="toolcell" id="toolcell-mut"></div>
-        </div>
-        <div class="grp" id="grp-scramble" style="display:none">
-          <div class="eyebrow">Somatic scramble (local, not heritable)</div>
-          <button class="btn" id="toolScramble" aria-pressed="false">Scramble brush</button>
-          <div class="field">
-            <span id="scrRlab">Brush radius · 6</span>
-            <input type="range" id="scrR" min="1" max="60" value="6">
-            <input type="number" id="scrRnum" value="6" min="1" step="1" style="width:100px">
-          </div>
-          <div class="field">
-            <span id="scrStrlab">Noise strength · 0.50</span>
-            <input type="range" id="scrStr" min="1" max="200" value="50">
-          </div>
-          <div class="toolnote">Paint on the organism to inject random noise into the morphogens of those cells — a local perturbation/lesion of the current animal. It changes cell <b>state</b>, not the genome, so it is <b>not</b> a mutation and is not heritable (a true mutant clone needs a separate genome — on the roadmap). Best watched with the run going.</div>
         </div>
       </div>
     </div>
@@ -481,7 +462,7 @@ const markers = els('markers'), mctx = markers.getContext('2d');
 const statusEl = els('status');
 
 let W1=null,B1=null,W2=null,B2=null,percK=null,seed=null,state=null; // persistent tensors
-let running=false, steps=0, stepsPerFrame=1, angleDeg=0, D=96, loaded=false;
+let running=false, steps=0, stepsPerFrame=1, angleDeg=0, D=192, loaded=false;
 let lassoPts=null, selectionPoly=null, drawingLasso=false;
 let viewMode='rgba', lastData=null; let chScale=new Float32Array(CH);
 let CH_LABEL=['R','G','B','α','m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12'];
@@ -563,11 +544,20 @@ function setDims(C, Hd){
   rebuildChannelMenus();
 }
 function rebuildChannelMenus(){
-  const bc=els('beadCh');
-  if(bc){ bc.innerHTML='';
-    for(let i=1;i<=CH-4;i++){ const o=document.createElement('option'); o.value=String(3+i); o.textContent='m'+i; if(i===1)o.selected=true; bc.appendChild(o); }
-    for(const pair of [[3,'α (alive)'],[0,'R'],[1,'G'],[2,'B']]){ const o=document.createElement('option'); o.value=String(pair[0]); o.textContent=pair[1]; bc.appendChild(o); }
+  const bp=els('beadChPick');
+  if(bp){ bp.innerHTML='';
+    const addSw=(c,label,col)=>{
+      const b=document.createElement('button'); b.className='swatch'; b.dataset.ch=c; b.title=label;
+      b.style.background=col; b.textContent=label;
+      b.setAttribute('aria-pressed', c===beadCh?'true':'false');
+      b.addEventListener('click',()=>{ beadCh=c;
+        bp.querySelectorAll('.swatch').forEach(s=>s.setAttribute('aria-pressed', (+s.dataset.ch)===beadCh?'true':'false')); });
+      bp.appendChild(b);
+    };
+    for(let c=4;c<CH;c++) addSw(c,'m'+(c-3),morphogenColor(c));       // morphogens, atlas colours
+    addSw(3,'α','rgba(180,190,200,0.95)');                            // alpha (grey)
     beadCh=4;
+    bp.querySelectorAll('.swatch').forEach(s=>s.setAttribute('aria-pressed', (+s.dataset.ch)===beadCh?'true':'false'));
   }
   const sm=els('seedMode');
   if(sm){ sm.innerHTML='';
@@ -882,21 +872,6 @@ function genomeBrushApply(e){
 }
 function genomeApplyAt(e){ if(gBrush<=1) applyGenomeOp(genomeCellAt(e)); else genomeBrushApply(e); }
 
-let scrambleR=6, scrambleStr=0.5, paintingScramble=false;
-function scrambleAt(cx,cy){                 // inject noise into morphogens of alive cells under the brush
-  if(!state||!lastData) return;
-  const R=scrambleR, delta=new Float32Array(D*D*CH);
-  for(let dy=-R;dy<=R;dy++) for(let dx=-R;dx<=R;dx++){
-    if(dx*dx+dy*dy>R*R) continue;
-    const x=Math.round(cx)+dx, y=Math.round(cy)+dy;
-    if(x<0||y<0||x>=D||y>=D) continue;
-    const i=y*D+x; if(lastData[i*CH+3]<=0.1) continue;      // alive cells only
-    for(let c=4;c<CH;c++) delta[i*CH+c]=(Math.random()*2-1)*scrambleStr;
-  }
-  tf.tidy(()=>{ state.assign(state.add(tf.tensor(delta,[1,D,D,CH]))); });
-  render();
-}
-
 function beadAt(x,y){                      // topmost bead near (x,y), or null
   for(let i=beads.length-1;i>=0;i--){ const b=beads[i];
     const dx=x-(b.x+0.5), dy=y-(b.y+0.5), gr=Math.max(b.r,3);
@@ -957,7 +932,7 @@ function renderBeadList(){
   }
 }
 // map a channel value to RGB: R/G/B in their own hue, alpha grayscale, genes diverging
-let geneScaleMode='auto', geneScaleFixed=1;         // atlas colour scale for hidden channels
+let geneScaleMode='fixed', geneScaleFixed=1;         // atlas colour scale for hidden channels (default fixed ±1)
 function scaleFor(k){ return geneScaleMode==='auto' ? chScale[k] : geneScaleFixed; }
 function chColor(k,v,scale,out,o){
   const cl=x=>x<0?0:(x>255?255:x);
@@ -1248,7 +1223,6 @@ canvas.addEventListener('pointerdown',e=>{ if(!state)return;
     addBead(c.x,c.y); return;
   }
   if(tool==='confine'){ canvas.setPointerCapture(e.pointerId); paintingWall=true; paintWall(c.x,c.y); return; }
-  if(tool==='scramble'){ canvas.setPointerCapture(e.pointerId); paintingScramble=true; scrambleAt(c.x,c.y); return; }
   canvas.setPointerCapture(e.pointerId);
   if(selectionPoly && pointInPoly(c,selectionPoly)){ // grab the selection to drag it
     const g=captureRegion(selectionPoly); if(!g) return;
@@ -1261,7 +1235,6 @@ canvas.addEventListener('pointermove',e=>{ if(!state)return;
   if(draggingBead){ const c=eventCell(e); draggingBead.x=Math.round(c.x); draggingBead.y=Math.round(c.y); rebuildBeads(); drawBeads(); return; }
   if(tool==='bead' && !paintingWall){ const c=eventCell(e); canvas.style.cursor = beadAt(c.x,c.y)?'grab':'crosshair'; }
   if(paintingWall){ const c=eventCell(e); paintWall(c.x,c.y); return; }
-  if(paintingScramble){ const c=eventCell(e); scrambleAt(c.x,c.y); return; }
   if(dragMode==='move'){
     moveGhost(e.clientX,e.clientY);
     const over=pointInRect(e.clientX,e.clientY,els('storeBox').getBoundingClientRect());
@@ -1273,7 +1246,6 @@ canvas.addEventListener('pointermove',e=>{ if(!state)return;
 function endPointer(e){
   if(draggingBead){ draggingBead=null; rebuildBeads(); return; }
   if(paintingWall){ paintingWall=false; return; }
-  if(paintingScramble){ paintingScramble=false; return; }
   if(dragMode==='move'&&grabGraft){
     const overStore=pointInRect(e.clientX,e.clientY,els('storeBox').getBoundingClientRect());
     const overDish =pointInRect(e.clientX,e.clientY,canvas.getBoundingClientRect());
@@ -1458,15 +1430,10 @@ function setTool(t){ tool=t;
   els('toolLasso').setAttribute('aria-pressed', t==='lasso'?'true':'false');
   els('toolBead').setAttribute('aria-pressed', t==='bead'?'true':'false');
   const tw=els('toolWall'); if(tw) tw.setAttribute('aria-pressed', t==='confine'?'true':'false');
-  const ts=els('toolScramble'); if(ts) ts.setAttribute('aria-pressed', t==='scramble'?'true':'false');
 }
 els('toolLasso').addEventListener('click',()=>setTool('lasso'));
 els('toolBead').addEventListener('click',()=>setTool(tool==='bead'?'lasso':'bead'));
 els('toolWall').addEventListener('click',()=>setTool(tool==='confine'?'lasso':'confine'));
-els('toolScramble').addEventListener('click',()=>setTool(tool==='scramble'?'lasso':'scramble'));
-els('scrR').addEventListener('input',e=>{ scrambleR=+e.target.value; els('scrRnum').value=scrambleR; els('scrRlab').textContent='Brush radius · '+scrambleR; });
-els('scrRnum').addEventListener('input',e=>{ const v=Math.max(1,Math.round(+e.target.value||1)); scrambleR=v; els('scrRlab').textContent='Brush radius · '+v; if(v<=60) els('scrR').value=v; });
-els('scrStr').addEventListener('input',e=>{ scrambleStr=(+e.target.value)/100; els('scrStrlab').textContent='Noise strength · '+scrambleStr.toFixed(2); });
 els('wallR').addEventListener('input',e=>{ wallRadius=+e.target.value; els('wallRlab').textContent='Wall brush radius · '+wallRadius; });
 els('confineSel').addEventListener('click',confineToSelection);
 els('clearWall').addEventListener('click',clearWalls);
@@ -1476,7 +1443,6 @@ function setBeadMode(m){ beadMode=m;
 }
 els('modeAdd').addEventListener('click',()=>setBeadMode('add'));
 els('modeClamp').addEventListener('click',()=>setBeadMode('clamp'));
-els('beadCh').addEventListener('change',e=>{ beadCh=+e.target.value; });
 function setBeadStrength(v){
   beadStrength=v;
   els('bstrlab').textContent='Strength · '+(v>=0?'+':'')+v.toFixed(2);
@@ -1534,9 +1500,9 @@ const PANE_CONTENT = {
   channels:{node:'content-channels', label:'Gene expression (channels)'},
   genome:{node:'content-genome',   label:'Genome'},
   analyser:{node:'content-analyser',label:'Expression analyser'},
-  tools:{node:'content-tools',     label:'Tools (lasso · bead · confine)'}
+  tools:{node:'content-tools',     label:'Embryology tools'}
 };
-let paneMap=['organism','channels','genome','analyser'];   // content key per pane index
+let paneMap=['organism','tools','genome','analyser'];   // organism TL, tools TR, genome BL, analyser BR
 function fillPaneSelect(sel, current){
   sel.innerHTML='';
   for(const key of Object.keys(PANE_CONTENT)){
@@ -1551,8 +1517,7 @@ function initPanes(){
   mv('toolcell-graft', ['grp-cut','grp-graft']);
   mv('toolcell-bead',  ['grp-bead']);
   mv('toolcell-wall',  ['grp-confine']);
-  mv('toolcell-mut',   ['grp-genome','grp-scramble']);
-  const scr=els('grp-scramble'); if(scr) scr.style.display='';   // reveal now it's placed
+  mv('toolcell-mut',   ['grp-genome']);
   for(let i=0;i<4;i++){ placeContent(i, paneMap[i]);
     const sel=document.querySelector('.pane-sel[data-pane="'+i+'"]'); fillPaneSelect(sel, paneMap[i]); }
   document.querySelectorAll('.pane-sel').forEach(sel=>{
